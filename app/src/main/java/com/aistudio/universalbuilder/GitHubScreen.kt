@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @Composable
 fun GitHubScreen(
@@ -21,7 +22,11 @@ fun GitHubScreen(
 ) {
 
     val context = LocalContext.current
-    val store = remember { GitHubConfigStore(context) }
+    val store = remember {
+        GitHubConfigStore(context)
+    }
+
+    val scope = rememberCoroutineScope()
 
     val savedConfig = remember {
         store.load()
@@ -43,24 +48,33 @@ fun GitHubScreen(
         mutableStateOf(
             if (
                 savedConfig.username.isNotBlank() &&
+                savedConfig.repository.isNotBlank() &&
                 savedConfig.token.isNotBlank()
             ) {
-                "Saved on this phone"
+                "Configuration saved"
             } else {
                 "Not configured"
             }
         )
     }
 
+    var isTesting by remember {
+        mutableStateOf(false)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFF07090E))
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(
+                rememberScrollState()
+            )
             .padding(18.dp)
     ) {
 
-        Spacer(Modifier.height(24.dp))
+        Spacer(
+            Modifier.height(24.dp)
+        )
 
         Text(
             text = "GITHUB BUILDER",
@@ -75,40 +89,61 @@ fun GitHubScreen(
             fontSize = 13.sp
         )
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(
+            Modifier.height(22.dp)
+        )
 
         SettingsCard {
 
             OutlinedTextField(
                 value = username,
-                onValueChange = { username = it },
-                label = { Text("GitHub Username") },
+                onValueChange = {
+                    username = it
+                },
+                label = {
+                    Text("GitHub Username")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(
+                Modifier.height(12.dp)
+            )
 
             OutlinedTextField(
                 value = repository,
-                onValueChange = { repository = it },
-                label = { Text("Builder Repository") },
+                onValueChange = {
+                    repository = it
+                },
+                label = {
+                    Text("Builder Repository")
+                },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(Modifier.height(12.dp))
+            Spacer(
+                Modifier.height(12.dp)
+            )
 
             OutlinedTextField(
                 value = token,
-                onValueChange = { token = it },
-                label = { Text("Personal Access Token") },
-                visualTransformation = PasswordVisualTransformation(),
+                onValueChange = {
+                    token = it
+                },
+                label = {
+                    Text("Personal Access Token")
+                },
+                visualTransformation =
+                    PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(Modifier.height(16.dp))
+            Spacer(
+                Modifier.height(16.dp)
+            )
 
             Button(
                 onClick = {
@@ -119,29 +154,117 @@ fun GitHubScreen(
                         token.isBlank()
                     ) {
 
-                        status = "Fill all fields"
+                        status =
+                            "Fill all fields first"
 
                     } else {
 
                         store.save(
-                            username = username.trim(),
-                            repository = repository.trim(),
-                            token = token.trim()
+                            username.trim(),
+                            repository.trim(),
+                            token.trim()
                         )
 
-                        status = "Saved securely on this phone"
+                        status =
+                            "Configuration saved"
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier =
+                    Modifier.fillMaxWidth()
             ) {
 
                 Text(
-                    text = "SAVE CONFIGURATION",
+                    "SAVE CONFIGURATION",
                     fontWeight = FontWeight.Bold
                 )
             }
 
-            Spacer(Modifier.height(10.dp))
+            Spacer(
+                Modifier.height(10.dp)
+            )
+
+            Button(
+                onClick = {
+
+                    if (
+                        username.isBlank() ||
+                        repository.isBlank() ||
+                        token.isBlank()
+                    ) {
+
+                        status =
+                            "Fill all fields first"
+
+                        return@Button
+                    }
+
+                    isTesting = true
+                    status = "Connecting to GitHub..."
+
+                    scope.launch {
+
+                        val result =
+                            GitHubApiClient.testConnection(
+                                username =
+                                    username.trim(),
+                                repository =
+                                    repository.trim(),
+                                token =
+                                    token.trim()
+                            )
+
+                        isTesting = false
+
+                        status =
+                            if (result.isSuccess) {
+
+                                store.save(
+                                    username.trim(),
+                                    repository.trim(),
+                                    token.trim()
+                                )
+
+                                "✓ GitHub connected"
+
+                            } else {
+
+                                "Connection failed: ${
+                                    result.exceptionOrNull()
+                                        ?.message
+                                        ?: "Unknown error"
+                                }"
+                            }
+                    }
+                },
+                enabled = !isTesting,
+                modifier =
+                    Modifier.fillMaxWidth()
+            ) {
+
+                if (isTesting) {
+
+                    CircularProgressIndicator(
+                        modifier =
+                            Modifier.size(20.dp),
+                        strokeWidth = 2.dp
+                    )
+
+                    Spacer(
+                        Modifier.width(10.dp)
+                    )
+                }
+
+                Text(
+                    if (isTesting)
+                        "TESTING..."
+                    else
+                        "TEST CONNECTION"
+                )
+            }
+
+            Spacer(
+                Modifier.height(10.dp)
+            )
 
             OutlinedButton(
                 onClick = {
@@ -149,37 +272,59 @@ fun GitHubScreen(
                     store.clear()
 
                     username = ""
-                    repository = "universal-app-builds"
+                    repository =
+                        "universal-app-builds"
                     token = ""
 
-                    status = "Configuration cleared"
+                    status =
+                        "Configuration cleared"
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier =
+                    Modifier.fillMaxWidth()
             ) {
 
-                Text("CLEAR SAVED CONFIG")
+                Text(
+                    "CLEAR SAVED CONFIG"
+                )
             }
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(
+            Modifier.height(14.dp)
+        )
 
         SettingsCard {
 
             Text(
-                text = "STATUS",
+                text = "CONNECTION STATUS",
                 color = Color(0xFFA58BFF),
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(
+                Modifier.height(8.dp)
+            )
 
             Text(
                 text = status,
-                color = Color.White
+                color =
+                    if (
+                        status.contains(
+                            "connected",
+                            ignoreCase = true
+                        )
+                    ) {
+                        Color(0xFF49DDA5)
+                    } else {
+                        Color.White
+                    },
+                fontSize = 14.sp
             )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(
+            Modifier.height(14.dp)
+        )
 
         SettingsCard {
 
@@ -189,33 +334,43 @@ fun GitHubScreen(
                 fontWeight = FontWeight.Bold
             )
 
-            Spacer(Modifier.height(8.dp))
+            Spacer(
+                Modifier.height(8.dp)
+            )
 
             Text(
                 text =
-                    "Your token is stored locally on this phone. Never paste the token into your public GitHub repository.",
+                    "Your GitHub token is stored locally on this phone. Never paste it into your public repository or share it with anyone.",
                 color = Color(0xFF9AA4B5),
                 fontSize = 13.sp
             )
         }
 
-        Spacer(Modifier.height(20.dp))
+        Spacer(
+            Modifier.height(20.dp)
+        )
 
         OutlinedButton(
             onClick = onBack,
-            modifier = Modifier.fillMaxWidth()
+            modifier =
+                Modifier.fillMaxWidth()
         ) {
 
-            Text("BACK TO BUILDER")
+            Text(
+                "BACK TO BUILDER"
+            )
         }
 
-        Spacer(Modifier.height(30.dp))
+        Spacer(
+            Modifier.height(30.dp)
+        )
     }
 }
 
 @Composable
 private fun SettingsCard(
-    content: @Composable ColumnScope.() -> Unit
+    content:
+        @Composable ColumnScope.() -> Unit
 ) {
 
     Column(
