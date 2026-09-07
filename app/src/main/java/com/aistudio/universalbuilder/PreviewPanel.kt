@@ -1,6 +1,7 @@
 package com.aistudio.universalbuilder
 
 import android.net.Uri
+import android.view.MotionEvent
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
@@ -80,7 +81,7 @@ fun PreviewPanel(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(500.dp)
+                    .height(560.dp)
                     .background(
                         Color.Black,
                         RoundedCornerShape(20.dp)
@@ -100,18 +101,62 @@ fun PreviewPanel(
 
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+
                             settings.allowFileAccess = true
                             settings.allowContentAccess = true
-                            settings.mediaPlaybackRequiresUserGesture = false
+
+                            settings.mediaPlaybackRequiresUserGesture =
+                                false
+
+                            settings.useWideViewPort = true
+                            settings.loadWithOverviewMode = true
+
+                            isVerticalScrollBarEnabled = true
+                            isHorizontalScrollBarEnabled = false
+
+                            overScrollMode =
+                                WebView.OVER_SCROLL_ALWAYS
+
+                            setOnTouchListener { view, event ->
+
+                                when (event.actionMasked) {
+
+                                    MotionEvent.ACTION_DOWN,
+                                    MotionEvent.ACTION_MOVE -> {
+
+                                        view.parent
+                                            ?.requestDisallowInterceptTouchEvent(
+                                                true
+                                            )
+                                    }
+
+                                    MotionEvent.ACTION_UP,
+                                    MotionEvent.ACTION_CANCEL -> {
+
+                                        view.parent
+                                            ?.requestDisallowInterceptTouchEvent(
+                                                false
+                                            )
+                                    }
+                                }
+
+                                false
+                            }
                         }
                     },
+
                     update = { webView ->
 
                         if (webView.url != previewUrl) {
-                            webView.loadUrl(previewUrl)
+
+                            webView.loadUrl(
+                                previewUrl
+                            )
                         }
                     },
-                    modifier = Modifier.fillMaxSize()
+
+                    modifier =
+                        Modifier.fillMaxSize()
                 )
             }
 
@@ -125,7 +170,8 @@ fun PreviewPanel(
                         Color(0xFF090C12),
                         RoundedCornerShape(20.dp)
                     ),
-                contentAlignment = Alignment.Center
+                contentAlignment =
+                    Alignment.Center
             ) {
 
                 Column(
@@ -137,28 +183,41 @@ fun PreviewPanel(
 
                         AndroidView(
                             factory = { context ->
+
                                 ImageView(context).apply {
+
                                     scaleType =
                                         ImageView.ScaleType.CENTER_CROP
                                 }
                             },
+
                             update = {
-                                it.setImageURI(iconUri)
+
+                                it.setImageURI(
+                                    iconUri
+                                )
                             },
-                            modifier = Modifier.size(72.dp)
+
+                            modifier =
+                                Modifier.size(72.dp)
                         )
 
-                        Spacer(Modifier.height(10.dp))
+                        Spacer(
+                            Modifier.height(10.dp)
+                        )
                     }
 
                     Text(
                         text = appName,
                         color = Color.White,
                         fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold
+                        fontWeight =
+                            FontWeight.Bold
                     )
 
-                    Spacer(Modifier.height(3.dp))
+                    Spacer(
+                        Modifier.height(3.dp)
+                    )
 
                     Text(
                         text = projectType,
