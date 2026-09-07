@@ -22,6 +22,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -81,11 +86,11 @@ jobs:
           elif [ -f project.godot ]; then
             echo "PROJECT_TYPE=GODOT" >> "$GITHUB_ENV"
 
-          elif [ -f index.html ]; then
-            echo "PROJECT_TYPE=WEB" >> "$GITHUB_ENV"
-
           elif [ -f package.json ]; then
             echo "PROJECT_TYPE=NODE_WEB" >> "$GITHUB_ENV"
+
+          elif [ -f index.html ]; then
+            echo "PROJECT_TYPE=WEB" >> "$GITHUB_ENV"
 
           else
             echo "PROJECT_TYPE=UNKNOWN" >> "$GITHUB_ENV"
@@ -104,6 +109,16 @@ jobs:
           cd "$PROJECT_ROOT"
           gradle assembleDebug --stacktrace
 
+      - name: Build Web Project APK
+        if: |
+          env.PROJECT_TYPE == 'WEB' ||
+          env.PROJECT_TYPE == 'NODE_WEB'
+        run: |
+          chmod +x scripts/build-web-apk.sh
+          scripts/build-web-apk.sh \
+            "$PROJECT_ROOT" \
+            "$GITHUB_WORKSPACE/output"
+
       - name: Find Android APK
         if: |
           env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER' ||
@@ -121,15 +136,6 @@ jobs:
 
           cp "$APK" output/generated-app.apk
 
-      - name: Web Project Adapter Status
-        if: |
-          env.PROJECT_TYPE == 'WEB' ||
-          env.PROJECT_TYPE == 'NODE_WEB'
-        run: |
-          echo "Web project detected."
-          echo "Web Android adapter not added yet."
-          exit 1
-
       - name: Godot Adapter Status
         if: env.PROJECT_TYPE == 'GODOT'
         run: |
@@ -143,8 +149,16 @@ jobs:
           echo "Unsupported or incomplete project."
           exit 1
 
+      - name: Verify APK
+        run: |
+          if [ ! -f output/generated-app.apk ]; then
+            echo "Generated APK not found."
+            exit 1
+          fi
+
+          ls -lh output/generated-app.apk
+
       - name: Upload Generated APK
-        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: generated-apk
