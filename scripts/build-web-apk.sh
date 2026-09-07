@@ -1,157 +1,191 @@
-name: Build Generated App
+#!/usr/bin/env bash
+set -e
 
-on:
-  workflow_dispatch:
+SOURCE_DIR="$1"
+OUTPUT_DIR="$2"
 
-permissions:
-  contents: read
-  actions: write
+WRAPPER="$GITHUB_WORKSPACE/web-wrapper"
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+rm -rf "$WRAPPER"
+mkdir -p "$WRAPPER/app/src/main/java/com/generated/webapp"
+mkdir -p "$WRAPPER/app/src/main/assets/www"
+mkdir -p "$OUTPUT_DIR"
 
-    steps:
-      - name: Checkout Builder Repository
-        uses: actions/checkout@v4
+WEB_DIR="$SOURCE_DIR"
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
+if [ -f "$SOURCE_DIR/package.json" ]; then
+    cd "$SOURCE_DIR"
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
+    npm install --no-audit --no-fund
+    npm run build --if-present
 
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: "8.11.1"
+    if [ -d "$SOURCE_DIR/dist" ]; then
+        WEB_DIR="$SOURCE_DIR/dist"
+    elif [ -d "$SOURCE_DIR/build" ]; then
+        WEB_DIR="$SOURCE_DIR/build"
+    fi
+fi
 
-      - name: Prepare Workspace
-        run: |
-          rm -rf generated-project
-          mkdir -p generated-project
-          mkdir -p output
+if [ ! -f "$WEB_DIR/index.html" ]; then
+    echo "index.html not found"
+    exit 1
+fi
 
-      - name: Download Uploaded Project
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download universal-builder-input \
-            --pattern "project-input.zip" \
-            --dir generated-project
+cp -R "$WEB_DIR"/. \
+"$WRAPPER/app/src/main/assets/www/"
 
-      - name: Extract Project
-        run: |
-          cd generated-project
+cat > "$WRAPPER/settings.gradle" <<'EOF'
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
 
-          if [ ! -f project-input.zip ]; then
-            echo "project-input.zip was not found."
-            exit 1
-          fi
+dependencyResolutionManagement {
+    repositoriesMode.set(
+        RepositoriesMode.FAIL_ON_PROJECT_REPOS
+    )
 
-          mkdir source
-          unzip -q project-input.zip -d source
-          rm project-input.zip
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
 
-      - name: Find Project Root
-        run: |
-          cd generated-project/source
+rootProject.name = "GeneratedWebApp"
+include(":app")
+EOF
 
-          PROJECT_ROOT="$(pwd)"
-          FIRST_DIR="$(find . -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-          ROOT_FILES="$(find . -mindepth 1 -maxdepth 1 -type f | wc -l)"
+cat > "$WRAPPER/build.gradle" <<'EOF'
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+EOF
 
-          if [ "$ROOT_FILES" -eq 0 ] && [ -n "$FIRST_DIR" ]; then
-            PROJECT_ROOT="$(cd "$FIRST_DIR" && pwd)"
-          fi
+cat > "$WRAPPER/app/build.gradle" <<'EOF'
+plugins {
+    id 'com.android.application'
+}
 
-          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+android {
+    namespace 'com.generated.webapp'
+    compileSdk 35
 
-      - name: Detect Project Type
-        run: |
-          cd "$PROJECT_ROOT"
+    defaultConfig {
+        applicationId 'com.generated.webapp'
+        minSdk 24
+        targetSdk 35
+        versionCode 1
+        versionName '1.0'
+    }
+}
+EOF
 
-          if [ -f gradlew ]; then
-            echo "PROJECT_TYPE=ANDROID_GRADLE_WRAPPER" >> "$GITHUB_ENV"
+cat > "$WRAPPER/app/src/main/AndroidManifest.xml" <<'EOF'
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-          elif [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then
-            echo "PROJECT_TYPE=ANDROID_GRADLE" >> "$GITHUB_ENV"
+    <uses-permission
+        android:name="android.permission.INTERNET" />
 
-          elif [ -f project.godot ]; then
-            echo "PROJECT_TYPE=GODOT" >> "$GITHUB_ENV"
+    <application
+        android:label="Generated App"
+        android:usesCleartextTraffic="true"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
 
-          elif [ -f package.json ]; then
-            echo "PROJECT_TYPE=NODE_WEB" >> "$GITHUB_ENV"
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
 
-          elif [ -f index.html ]; then
-            echo "PROJECT_TYPE=WEB" >> "$GITHUB_ENV"
+            <intent-filter>
+                <action
+                    android:name="android.intent.action.MAIN" />
 
-          else
-            echo "PROJECT_TYPE=UNKNOWN" >> "$GITHUB_ENV"
-          fi
+                <category
+                    android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
 
-      - name: Build Android Project With Wrapper
-        if: env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER'
-        run: |
-          cd "$PROJECT_ROOT"
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
+        </activity>
 
-      - name: Build Android Project With Gradle
-        if: env.PROJECT_TYPE == 'ANDROID_GRADLE'
-        run: |
-          cd "$PROJECT_ROOT"
-          gradle assembleDebug --stacktrace
+    </application>
 
-      - name: Build Web / WebGL / Three.js Project
-        if: |
-          env.PROJECT_TYPE == 'WEB' ||
-          env.PROJECT_TYPE == 'NODE_WEB'
-        run: |
-          chmod +x scripts/build-web-apk.sh
-          scripts/build-web-apk.sh "$PROJECT_ROOT" "$GITHUB_WORKSPACE/output"
+</manifest>
+EOF
 
-      - name: Find Android APK
-        if: |
-          env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER' ||
-          env.PROJECT_TYPE == 'ANDROID_GRADLE'
-        run: |
-          APK="$(find "$PROJECT_ROOT" -type f -name "*.apk" \
-            ! -name "*androidTest*" \
-            ! -name "*unaligned*" \
-            | head -n 1)"
+cat > "$WRAPPER/app/src/main/java/com/generated/webapp/MainActivity.java" <<'EOF'
+package com.generated.webapp;
 
-          if [ -z "$APK" ]; then
-            echo "No APK was produced."
-            exit 1
-          fi
+import android.app.Activity;
+import android.os.Bundle;
+import android.webkit.WebChromeClient;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
 
-          cp "$APK" output/generated-app.apk
+public class MainActivity extends Activity {
 
-      - name: Godot Adapter Status
-        if: env.PROJECT_TYPE == 'GODOT'
-        run: |
-          echo "Godot project detected."
-          echo "Godot Android adapter not added yet."
-          exit 1
+    private WebView webView;
 
-      - name: Unsupported Project Error
-        if: env.PROJECT_TYPE == 'UNKNOWN'
-        run: |
-          echo "Unsupported or incomplete project."
-          exit 1
+    @Override
+    protected void onCreate(
+        Bundle savedInstanceState
+    ) {
+        super.onCreate(savedInstanceState);
 
-      - name: Upload Generated APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: generated-apk
-          path: output/generated-app.apk
-          retention-days: 1
-          if-no-files-found: error
+        webView = new WebView(this);
+        setContentView(webView);
+
+        WebSettings settings =
+            webView.getSettings();
+
+        settings.setJavaScriptEnabled(true);
+        settings.setDomStorageEnabled(true);
+        settings.setAllowFileAccess(true);
+        settings.setAllowContentAccess(true);
+
+        webView.setWebChromeClient(
+            new WebChromeClient()
+        );
+
+        webView.setWebViewClient(
+            new WebViewClient()
+        );
+
+        webView.loadUrl(
+            "file:///android_asset/www/index.html"
+        );
+    }
+
+    @Override
+    public void onBackPressed() {
+
+        if (
+            webView != null &&
+            webView.canGoBack()
+        ) {
+            webView.goBack();
+
+        } else {
+            super.onBackPressed();
+        }
+    }
+}
+EOF
+
+cd "$WRAPPER"
+
+gradle :app:assembleDebug \
+    --stacktrace
+
+APK="$WRAPPER/app/build/outputs/apk/debug/app-debug.apk"
+
+if [ ! -f "$APK" ]; then
+    echo "APK was not created"
+    exit 1
+fi
+
+cp "$APK" \
+"$OUTPUT_DIR/generated-app.apk"
+
+echo "WEB APK CREATED"
