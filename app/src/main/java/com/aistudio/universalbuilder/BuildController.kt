@@ -1,14 +1,13 @@
 package com.aistudio.universalbuilder
 
 import android.content.Context
-import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 data class BuildRequest(
     val appName: String,
     val packageName: String,
-    val projectUri: Uri,
+    val projectUri: android.net.Uri,
     val projectName: String
 )
 
@@ -51,22 +50,28 @@ class BuildController(
             if (connection.isFailure) {
                 return@withContext BuildResult(
                     success = false,
-                    message =
-                        "GitHub connection failed: ${
-                            connection.exceptionOrNull()
-                                ?.message
-                                ?: "Unknown error"
-                        }"
+                    message = "GitHub connection failed: ${
+                        connection.exceptionOrNull()?.message
+                            ?: "Unknown error"
+                    }"
                 )
             }
 
-            /*
-             * IMPORTANT:
-             *
-             * Project upload is added in the next stage.
-             * We do NOT try to upload a 100–250 MB ZIP
-             * through GitHub's normal Contents API.
-             */
+            val upload =
+                ProjectTransport.uploadProject(
+                    context = context,
+                    projectUri = request.projectUri,
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token
+                )
+
+            if (!upload.success) {
+                return@withContext BuildResult(
+                    success = false,
+                    message = upload.message
+                )
+            }
 
             val trigger =
                 GitHubApiClient.triggerWorkflow(
@@ -79,27 +84,23 @@ class BuildController(
             if (trigger.isFailure) {
                 return@withContext BuildResult(
                     success = false,
-                    message =
-                        "Build trigger failed: ${
-                            trigger.exceptionOrNull()
-                                ?.message
-                                ?: "Unknown error"
-                        }"
+                    message = "Workflow trigger failed: ${
+                        trigger.exceptionOrNull()?.message
+                            ?: "Unknown error"
+                    }"
                 )
             }
 
             BuildResult(
                 success = true,
-                message =
-                    "GitHub build started"
+                message = "Project uploaded. GitHub build started."
             )
 
         } catch (e: Exception) {
 
             BuildResult(
                 success = false,
-                message =
-                    e.message ?: "Build failed"
+                message = e.message ?: "Build failed"
             )
         }
     }
