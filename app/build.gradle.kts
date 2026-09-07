@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example"
+    namespace = "com.aistudio.universalbuilder"
     compileSdk = 35
 
     defaultConfig {
