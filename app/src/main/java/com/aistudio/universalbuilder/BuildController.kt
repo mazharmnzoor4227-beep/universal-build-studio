@@ -29,62 +29,73 @@ class BuildController(
 
         try {
 
-            val store =
-                GitHubConfigStore(context)
-
             val config =
-                store.load()
+                GitHubConfigStore(context)
+                    .load()
 
             if (
                 config.username.isBlank() ||
                 config.repository.isBlank() ||
                 config.token.isBlank()
             ) {
+
                 return@withContext BuildResult(
-                    success = false,
-                    message =
-                        "GitHub Builder is not configured"
+                    false,
+                    "GitHub Builder is not configured"
                 )
             }
 
             val connection =
                 GitHubApiClient.testConnection(
-                    username = config.username,
-                    repository = config.repository,
-                    token = config.token
+                    config.username,
+                    config.repository,
+                    config.token
                 )
 
             if (connection.isFailure) {
 
                 return@withContext BuildResult(
-                    success = false,
-                    message =
-                        "GitHub connection failed"
+                    false,
+                    "GitHub connection failed"
                 )
             }
 
             val upload =
                 ProjectTransport.uploadProject(
                     context = context,
-                    projectUri = request.projectUri,
-                    username = config.username,
-                    repository = config.repository,
-                    token = config.token
+                    projectUri =
+                        request.projectUri,
+                    username =
+                        config.username,
+                    repository =
+                        config.repository,
+                    token =
+                        config.token
                 )
 
             if (!upload.success) {
 
                 return@withContext BuildResult(
-                    success = false,
-                    message = upload.message
+                    false,
+                    upload.message
                 )
             }
 
+            val previousRunId =
+                BuildMonitor.latestRunId(
+                    config.username,
+                    config.repository,
+                    config.token
+                )
+
             val trigger =
                 GitHubApiClient.triggerWorkflow(
-                    username = config.username,
-                    repository = config.repository,
-                    token = config.token,
+                    username =
+                        config.username,
+                    repository =
+                        config.repository,
+                    token =
+                        config.token,
                     workflowFile =
                         "build-generated-app.yml"
                 )
@@ -92,42 +103,49 @@ class BuildController(
             if (trigger.isFailure) {
 
                 return@withContext BuildResult(
-                    success = false,
-                    message =
-                        "Workflow trigger failed"
+                    false,
+                    "Workflow trigger failed"
                 )
             }
 
             val monitor =
                 BuildMonitor.waitForBuild(
-                    username = config.username,
-                    repository = config.repository,
-                    token = config.token
+                    username =
+                        config.username,
+                    repository =
+                        config.repository,
+                    token =
+                        config.token,
+                    afterRunId =
+                        previousRunId
                 )
 
             if (!monitor.success) {
 
                 return@withContext BuildResult(
-                    success = false,
-                    message = monitor.message
+                    false,
+                    monitor.message
                 )
             }
 
             val artifactId =
                 monitor.artifactId
                     ?: return@withContext BuildResult(
-                        success = false,
-                        message =
-                            "APK artifact ID not found"
+                        false,
+                        "APK artifact not found"
                     )
 
             val download =
                 ApkDownloader.downloadArtifact(
                     context = context,
-                    username = config.username,
-                    repository = config.repository,
-                    token = config.token,
-                    artifactId = artifactId
+                    username =
+                        config.username,
+                    repository =
+                        config.repository,
+                    token =
+                        config.token,
+                    artifactId =
+                        artifactId
                 )
 
             if (
@@ -136,15 +154,14 @@ class BuildController(
             ) {
 
                 return@withContext BuildResult(
-                    success = false,
-                    message = download.message
+                    false,
+                    download.message
                 )
             }
 
             BuildResult(
                 success = true,
-                message =
-                    "APK READY",
+                message = "APK READY",
                 apkFile =
                     download.apkFile
             )
