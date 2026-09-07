@@ -33,6 +33,14 @@ object BuildStatusHelper {
                     .getWorkInfoById(workId)
                     .get()
 
+            if (workInfo == null) {
+
+                return BackgroundBuildState(
+                    isBuilding = false,
+                    status = "Ready"
+                )
+            }
+
             when (workInfo.state) {
 
                 WorkInfo.State.ENQUEUED,
@@ -87,14 +95,16 @@ object BuildStatusHelper {
 
                 WorkInfo.State.FAILED -> {
 
+                    val message =
+                        workInfo.outputData
+                            .getString(
+                                BuildWorker.KEY_STATUS
+                            )
+                            ?: "BUILD FAILED"
+
                     BackgroundBuildState(
                         isBuilding = false,
-                        status =
-                            workInfo.outputData
-                                .getString(
-                                    BuildWorker.KEY_STATUS
-                                )
-                                ?: "BUILD FAILED"
+                        status = message
                     )
                 }
 
@@ -102,8 +112,7 @@ object BuildStatusHelper {
 
                     BackgroundBuildState(
                         isBuilding = false,
-                        status =
-                            "Build cancelled"
+                        status = "Build cancelled"
                     )
                 }
             }
