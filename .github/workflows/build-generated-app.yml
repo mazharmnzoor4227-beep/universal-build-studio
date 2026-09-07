@@ -1,0 +1,153 @@
+name: Build Generated App
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout Builder Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Prepare Workspace
+        run: |
+          rm -rf generated-project
+          mkdir -p generated-project
+          mkdir -p output
+
+      - name: Download Uploaded Project
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download universal-builder-input \
+            --pattern "project-input.zip" \
+            --dir generated-project
+
+      - name: Extract Project
+        run: |
+          cd generated-project
+
+          if [ ! -f project-input.zip ]; then
+            echo "project-input.zip was not found."
+            exit 1
+          fi
+
+          mkdir source
+          unzip -q project-input.zip -d source
+          rm project-input.zip
+
+      - name: Find Project Root
+        run: |
+          cd generated-project/source
+
+          PROJECT_ROOT="$(pwd)"
+          FIRST_DIR="$(find . -mindepth 1 -maxdepth 1 -type d | head -n 1)"
+          ROOT_FILES="$(find . -mindepth 1 -maxdepth 1 -type f | wc -l)"
+
+          if [ "$ROOT_FILES" -eq 0 ] && [ -n "$FIRST_DIR" ]; then
+            PROJECT_ROOT="$(cd "$FIRST_DIR" && pwd)"
+          fi
+
+          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
+
+      - name: Detect Project Type
+        run: |
+          cd "$PROJECT_ROOT"
+
+          if [ -f gradlew ]; then
+            echo "PROJECT_TYPE=ANDROID_GRADLE_WRAPPER" >> "$GITHUB_ENV"
+
+          elif [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then
+            echo "PROJECT_TYPE=ANDROID_GRADLE" >> "$GITHUB_ENV"
+
+          elif [ -f project.godot ]; then
+            echo "PROJECT_TYPE=GODOT" >> "$GITHUB_ENV"
+
+          elif [ -f index.html ]; then
+            echo "PROJECT_TYPE=WEB" >> "$GITHUB_ENV"
+
+          elif [ -f package.json ]; then
+            echo "PROJECT_TYPE=NODE_WEB" >> "$GITHUB_ENV"
+
+          else
+            echo "PROJECT_TYPE=UNKNOWN" >> "$GITHUB_ENV"
+          fi
+
+      - name: Build Android Project With Wrapper
+        if: env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER'
+        run: |
+          cd "$PROJECT_ROOT"
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Build Android Project With Gradle
+        if: env.PROJECT_TYPE == 'ANDROID_GRADLE'
+        run: |
+          cd "$PROJECT_ROOT"
+          gradle assembleDebug --stacktrace
+
+      - name: Find Android APK
+        if: |
+          env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER' ||
+          env.PROJECT_TYPE == 'ANDROID_GRADLE'
+        run: |
+          APK="$(find "$PROJECT_ROOT" -type f -name "*.apk" \
+            ! -name "*androidTest*" \
+            ! -name "*unaligned*" \
+            | head -n 1)"
+
+          if [ -z "$APK" ]; then
+            echo "No APK was produced."
+            exit 1
+          fi
+
+          cp "$APK" output/generated-app.apk
+
+      - name: Web Project Adapter Status
+        if: |
+          env.PROJECT_TYPE == 'WEB' ||
+          env.PROJECT_TYPE == 'NODE_WEB'
+        run: |
+          echo "Web project detected."
+          echo "Web Android adapter not added yet."
+          exit 1
+
+      - name: Godot Adapter Status
+        if: env.PROJECT_TYPE == 'GODOT'
+        run: |
+          echo "Godot project detected."
+          echo "Godot Android adapter not added yet."
+          exit 1
+
+      - name: Unsupported Project Error
+        if: env.PROJECT_TYPE == 'UNKNOWN'
+        run: |
+          echo "Unsupported or incomplete project."
+          exit 1
+
+      - name: Upload Generated APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-apk
+          path: output/generated-app.apk
+          retention-days: 1
+          if-no-files-found: error
