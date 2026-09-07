@@ -1,5 +1,6 @@
 package com.aistudio.universalbuilder
 
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -13,9 +14,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.launch
 
 @Composable
 fun BuilderScreen(
@@ -31,17 +34,26 @@ fun BuilderScreen(
     onOpenHistory: () -> Unit
 ) {
 
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    var projectUri by remember { mutableStateOf<Uri?>(null) }
     var preview by remember { mutableStateOf(false) }
+    var buildStatus by remember { mutableStateOf("Ready") }
+    var isBuilding by remember { mutableStateOf(false) }
 
     val projectPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
+            projectUri = uri
+
             val name = uri.lastPathSegment
                 ?.substringAfterLast("/")
                 ?: "Imported Project"
 
             onProjectSelected(name)
+            buildStatus = "Project selected"
         }
     }
 
@@ -254,18 +266,96 @@ fun BuilderScreen(
             }
         }
 
+        Spacer(Modifier.height(14.dp))
+
+        PremiumCard {
+
+            Text(
+                "BUILD STATUS",
+                color = Color(0xFFA58BFF),
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(Modifier.height(8.dp))
+
+            Text(
+                buildStatus,
+                color = if (
+                    buildStatus.contains("started", true) ||
+                    buildStatus.contains("ready", true)
+                ) {
+                    Color(0xFF54DFA8)
+                } else {
+                    Color.White
+                },
+                fontSize = 13.sp
+            )
+        }
+
         Spacer(Modifier.height(18.dp))
 
         Button(
-            onClick = onOpenGitHub,
+            onClick = {
+
+                val uri = projectUri
+
+                if (uri == null) {
+                    buildStatus = "Select project first"
+                    return@Button
+                }
+
+                if (appName.isBlank()) {
+                    buildStatus = "Enter app name"
+                    return@Button
+                }
+
+                if (packageName.isBlank()) {
+                    buildStatus = "Enter package ID"
+                    return@Button
+                }
+
+                isBuilding = true
+                buildStatus = "Checking GitHub Builder..."
+
+                scope.launch {
+
+                    val controller = BuildController(context)
+
+                    val result = controller.startBuild(
+                        BuildRequest(
+                            appName = appName,
+                            packageName = packageName,
+                            projectUri = uri,
+                            projectName = projectName
+                        )
+                    )
+
+                    isBuilding = false
+                    buildStatus = result.message
+                }
+            },
+            enabled = !isBuilding,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp),
             shape = RoundedCornerShape(18.dp)
         ) {
 
+            if (isBuilding) {
+
+                CircularProgressIndicator(
+                    modifier = Modifier.size(20.dp),
+                    strokeWidth = 2.dp
+                )
+
+                Spacer(Modifier.width(10.dp))
+            }
+
             Text(
-                "BUILD APK",
+                if (isBuilding)
+                    "STARTING BUILD..."
+                else
+                    "BUILD APK",
                 fontSize = 17.sp,
                 fontWeight = FontWeight.Black
             )
