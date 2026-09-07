@@ -9,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -19,13 +20,36 @@ fun GitHubScreen(
     onBack: () -> Unit
 ) {
 
-    var username by remember { mutableStateOf("") }
-    var repository by remember {
-        mutableStateOf("universal-app-builds")
+    val context = LocalContext.current
+    val store = remember { GitHubConfigStore(context) }
+
+    val savedConfig = remember {
+        store.load()
     }
-    var token by remember { mutableStateOf("") }
+
+    var username by remember {
+        mutableStateOf(savedConfig.username)
+    }
+
+    var repository by remember {
+        mutableStateOf(savedConfig.repository)
+    }
+
+    var token by remember {
+        mutableStateOf(savedConfig.token)
+    }
+
     var status by remember {
-        mutableStateOf("Not configured")
+        mutableStateOf(
+            if (
+                savedConfig.username.isNotBlank() &&
+                savedConfig.token.isNotBlank()
+            ) {
+                "Saved on this phone"
+            } else {
+                "Not configured"
+            }
+        )
     }
 
     Column(
@@ -39,21 +63,21 @@ fun GitHubScreen(
         Spacer(Modifier.height(24.dp))
 
         Text(
-            "GITHUB BUILDER",
+            text = "GITHUB BUILDER",
             color = Color.White,
             fontSize = 25.sp,
             fontWeight = FontWeight.Black
         )
 
         Text(
-            "Connect the build engine",
+            text = "Connect the real APK build engine",
             color = Color(0xFF8D97A7),
             fontSize = 13.sp
         )
 
         Spacer(Modifier.height(22.dp))
 
-        GitHubCard {
+        SettingsCard {
 
             OutlinedTextField(
                 value = username,
@@ -79,39 +103,70 @@ fun GitHubScreen(
                 value = token,
                 onValueChange = { token = it },
                 label = { Text("Personal Access Token") },
-                visualTransformation =
-                    PasswordVisualTransformation(),
+                visualTransformation = PasswordVisualTransformation(),
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true
             )
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(16.dp))
 
             Button(
                 onClick = {
-                    status =
-                        if (
-                            username.isNotBlank() &&
-                            repository.isNotBlank() &&
-                            token.isNotBlank()
-                        ) {
-                            "Configuration ready"
-                        } else {
-                            "Fill all fields"
-                        }
+
+                    if (
+                        username.isBlank() ||
+                        repository.isBlank() ||
+                        token.isBlank()
+                    ) {
+
+                        status = "Fill all fields"
+
+                    } else {
+
+                        store.save(
+                            username = username.trim(),
+                            repository = repository.trim(),
+                            token = token.trim()
+                        )
+
+                        status = "Saved securely on this phone"
+                    }
                 },
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("TEST CONFIGURATION")
+
+                Text(
+                    text = "SAVE CONFIGURATION",
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            Spacer(Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = {
+
+                    store.clear()
+
+                    username = ""
+                    repository = "universal-app-builds"
+                    token = ""
+
+                    status = "Configuration cleared"
+                },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+
+                Text("CLEAR SAVED CONFIG")
             }
         }
 
         Spacer(Modifier.height(14.dp))
 
-        GitHubCard {
+        SettingsCard {
 
             Text(
-                "STATUS",
+                text = "STATUS",
                 color = Color(0xFFA58BFF),
                 fontWeight = FontWeight.Bold
             )
@@ -119,17 +174,17 @@ fun GitHubScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                status,
+                text = status,
                 color = Color.White
             )
         }
 
         Spacer(Modifier.height(14.dp))
 
-        GitHubCard {
+        SettingsCard {
 
             Text(
-                "IMPORTANT",
+                text = "SECURITY",
                 color = Color(0xFFA58BFF),
                 fontWeight = FontWeight.Bold
             )
@@ -137,7 +192,8 @@ fun GitHubScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                "Never place your GitHub token inside your public repository. The token will later be stored locally on this phone.",
+                text =
+                    "Your token is stored locally on this phone. Never paste the token into your public GitHub repository.",
                 color = Color(0xFF9AA4B5),
                 fontSize = 13.sp
             )
@@ -149,6 +205,7 @@ fun GitHubScreen(
             onClick = onBack,
             modifier = Modifier.fillMaxWidth()
         ) {
+
             Text("BACK TO BUILDER")
         }
 
@@ -157,7 +214,7 @@ fun GitHubScreen(
 }
 
 @Composable
-private fun GitHubCard(
+private fun SettingsCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
 
