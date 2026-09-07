@@ -9,7 +9,9 @@ import androidx.compose.runtime.*
 
 class MainActivity : ComponentActivity() {
 
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(
+        savedInstanceState: Bundle?
+    ) {
         super.onCreate(savedInstanceState)
 
         setContent {
@@ -21,74 +23,161 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun UniversalBuildStudioApp() {
 
+    val context =
+        androidx.compose.ui.platform.LocalContext.current
+
+    val sessionStore =
+        remember {
+            BuilderSessionStore(context)
+        }
+
+    val savedSession =
+        remember {
+            sessionStore.load()
+        }
+
     var selectedTab by remember {
         mutableStateOf("Builder")
     }
 
     var appName by remember {
-        mutableStateOf("My App")
+        mutableStateOf(
+            savedSession.appName
+        )
     }
 
     var packageName by remember {
-        mutableStateOf("com.myapp.generated")
+        mutableStateOf(
+            savedSession.packageName
+        )
     }
 
     var projectName by remember {
-        mutableStateOf("No project selected")
+        mutableStateOf(
+            savedSession.projectName
+        )
     }
 
     var iconSelected by remember {
-        mutableStateOf(false)
+        mutableStateOf(
+            savedSession.iconUri
+                .isNotBlank()
+        )
     }
 
     MaterialTheme(
-        colorScheme = darkColorScheme()
+        colorScheme =
+            darkColorScheme()
     ) {
 
         when (selectedTab) {
 
-            "Builder" -> BuilderScreen(
-                appName = appName,
-                packageName = packageName,
-                projectName = projectName,
-                iconSelected = iconSelected,
+            "Builder" -> {
 
-                onAppNameChange = {
-                    appName = it
-                },
+                BuilderScreen(
+                    appName = appName,
+                    packageName =
+                        packageName,
+                    projectName =
+                        projectName,
+                    iconSelected =
+                        iconSelected,
 
-                onPackageChange = {
-                    packageName = it
-                },
+                    onAppNameChange = {
 
-                onProjectSelected = {
-                    projectName = it
-                },
+                        appName = it
 
-                onIconSelected = {
-                    iconSelected = true
-                },
+                        sessionStore.save(
+                            appName =
+                                appName,
+                            packageName =
+                                packageName,
+                            projectName =
+                                projectName,
+                            projectUri =
+                                savedSession.projectUri,
+                            iconUri =
+                                savedSession.iconUri
+                        )
+                    },
 
-                onOpenGitHub = {
-                    selectedTab = "GitHub"
-                },
+                    onPackageChange = {
 
-                onOpenHistory = {
-                    selectedTab = "History"
-                }
-            )
+                        packageName = it
 
-            "GitHub" -> GitHubScreen(
-                onBack = {
-                    selectedTab = "Builder"
-                }
-            )
+                        sessionStore.save(
+                            appName =
+                                appName,
+                            packageName =
+                                packageName,
+                            projectName =
+                                projectName,
+                            projectUri =
+                                savedSession.projectUri,
+                            iconUri =
+                                savedSession.iconUri
+                        )
+                    },
 
-            "History" -> HistoryScreen(
-                onBack = {
-                    selectedTab = "Builder"
-                }
-            )
+                    onProjectSelected = {
+
+                        projectName = it
+
+                        sessionStore.save(
+                            appName =
+                                appName,
+                            packageName =
+                                packageName,
+                            projectName =
+                                projectName,
+                            projectUri =
+                                savedSession.projectUri,
+                            iconUri =
+                                savedSession.iconUri
+                        )
+                    },
+
+                    onIconSelected = {
+
+                        iconSelected =
+                            true
+                    },
+
+                    onOpenGitHub = {
+
+                        selectedTab =
+                            "GitHub"
+                    },
+
+                    onOpenHistory = {
+
+                        selectedTab =
+                            "History"
+                    }
+                )
+            }
+
+            "GitHub" -> {
+
+                GitHubScreen(
+                    onBack = {
+
+                        selectedTab =
+                            "Builder"
+                    }
+                )
+            }
+
+            "History" -> {
+
+                HistoryScreen(
+                    onBack = {
+
+                        selectedTab =
+                            "Builder"
+                    }
+                )
+            }
         }
     }
 }
