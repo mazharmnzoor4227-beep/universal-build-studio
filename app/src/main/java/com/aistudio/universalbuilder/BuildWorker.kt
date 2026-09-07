@@ -40,8 +40,20 @@ class BuildWorker(
                         errorData("Project file missing")
                     )
 
+            val iconUriText =
+                inputData.getString(KEY_ICON_URI)
+
             val projectUri =
                 Uri.parse(uriText)
+
+            val iconUri =
+                iconUriText
+                    ?.takeIf {
+                        it.isNotBlank()
+                    }
+                    ?.let {
+                        Uri.parse(it)
+                    }
 
             setProgress(
                 Data.Builder()
@@ -72,7 +84,8 @@ class BuildWorker(
                         appName = appName,
                         packageName = packageName,
                         projectUri = projectUri,
-                        projectName = projectName
+                        projectName = projectName,
+                        iconUri = iconUri
                     )
                 )
 
@@ -142,6 +155,9 @@ class BuildWorker(
 
         const val KEY_PROJECT_URI =
             "project_uri"
+
+        const val KEY_ICON_URI =
+            "icon_uri"
 
         const val KEY_STATUS =
             "build_status"
