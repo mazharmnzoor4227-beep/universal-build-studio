@@ -76,6 +76,28 @@ class BuildController(
                     )
                 }
 
+                val selectedIcon =
+                    request.iconUri
+
+                if (selectedIcon != null) {
+
+                    val iconUpload =
+                        IconTransport.uploadIcon(
+                            context = context,
+                            iconUri = selectedIcon,
+                            username = config.username,
+                            repository = config.repository,
+                            token = config.token
+                        )
+
+                    if (!iconUpload.success) {
+                        return@withContext BuildResult(
+                            false,
+                            iconUpload.message
+                        )
+                    }
+                }
+
                 val previousRunId =
                     BuildMonitor.latestRunId(
                         config.username,
