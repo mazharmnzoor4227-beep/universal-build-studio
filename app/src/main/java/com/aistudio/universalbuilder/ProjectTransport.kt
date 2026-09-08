@@ -28,7 +28,7 @@ class ProjectTransport(private val releaseTag: String = "universal-builder-input
     data class UploadResult(
         val success: Boolean,
         val message: String,
-        val assetName: String = ASSET_NAME
+        val assetName: String = "project-input.zip"
     )
 
     suspend fun uploadProject(

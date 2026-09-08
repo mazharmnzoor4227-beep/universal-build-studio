@@ -48,7 +48,7 @@ object BuildStatusHelper {
 
                     BackgroundBuildState(
                         isBuilding = true,
-                        status = "Build queued..."
+                        status = BuildRecords(context).get(workId.toString())?.optString("status") ?: "Build queued..."
                     )
                 }
 

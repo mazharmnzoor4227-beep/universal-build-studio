@@ -964,6 +964,19 @@ public class MainActivity extends Activity {
     }
 
     public class NativeMediaBridge {
+        @JavascriptInterface public void play(String source, String title, String artist) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, MediaPlaybackService.class);
+                i.setAction(MediaPlaybackService.ACTION_LOAD);
+                i.putExtra("source", source).putExtra(MediaPlaybackService.EXTRA_TITLE, title).putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
+                try { if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i); }
+                catch (Exception ignored) { }
+            });
+        }
+        @JavascriptInterface public void stop() {
+            runOnUiThread(() -> stopService(new Intent(MainActivity.this, MediaPlaybackService.class)));
+        }
+
 
         @JavascriptInterface
         public void updateMedia(

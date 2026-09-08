@@ -90,7 +90,7 @@ class BuildWorker(
                     id.toString()
                 )
 
-            if (buildResult.pending) {
+            if (buildResult.pending && runAttemptCount < 240) {
                 return Result.retry()
             }
 

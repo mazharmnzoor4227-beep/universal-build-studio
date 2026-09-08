@@ -13,6 +13,46 @@ import android.os.Build;
 import android.os.IBinder;
 
 public class MediaPlaybackService extends Service {
+    public static final String ACTION_LOAD = "com.generated.webapp.LOAD";
+    public static final String ACTION_STOP = "com.generated.webapp.STOP";
+    private android.media.MediaPlayer player;
+    private boolean prepared;
+    private android.media.AudioManager audioManager;
+    private final android.media.AudioManager.OnAudioFocusChangeListener focusListener = change -> {
+        if (change < 0 && player != null && prepared) { player.pause(); setPlaying(false); }
+    };
+    private final android.content.BroadcastReceiver noisyReceiver = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context c, Intent i) {
+            if (player != null && prepared) { player.pause(); setPlaying(false); }
+        }
+    };
+    private void playNative() {
+        if (player == null || !prepared) return;
+        int focus = audioManager.requestAudioFocus(focusListener, android.media.AudioManager.STREAM_MUSIC, android.media.AudioManager.AUDIOFOCUS_GAIN);
+        if (focus == android.media.AudioManager.AUDIOFOCUS_REQUEST_GRANTED) { player.start(); setPlaying(true); }
+    }
+    private void releasePlayer() {
+        if (player != null) { player.release(); player = null; }
+        prepared = false;
+        if (audioManager != null) audioManager.abandonAudioFocus(focusListener);
+    }
+    private void loadAudio(String source) {
+        releasePlayer();
+        try {
+            android.net.Uri uri = android.net.Uri.parse(source);
+            String scheme = uri.getScheme();
+            if (!"content".equals(scheme) && !"https".equals(scheme)) throw new IllegalArgumentException("Use a content or HTTPS audio URI");
+            player = new android.media.MediaPlayer();
+            player.setAudioAttributes(new android.media.AudioAttributes.Builder().setUsage(android.media.AudioAttributes.USAGE_MEDIA).setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC).build());
+            player.setWakeMode(this, android.os.PowerManager.PARTIAL_WAKE_LOCK);
+            player.setDataSource(this, uri);
+            player.setOnPreparedListener(p -> { prepared = true; playNative(); });
+            player.setOnCompletionListener(p -> { setPlaying(false); });
+            player.setOnErrorListener((p, what, extra) -> { releasePlayer(); setPlaying(false); return true; });
+            player.prepareAsync();
+        } catch (Exception e) { releasePlayer(); setPlaying(false); }
+    }
+
 
     public static final String ACTION_PLAY =
         "com.generated.webapp.PLAY";
@@ -60,6 +100,10 @@ public class MediaPlaybackService extends Service {
         super.onCreate();
 
         createNotificationChannel();
+        audioManager = (android.media.AudioManager) getSystemService(AUDIO_SERVICE);
+        android.content.IntentFilter noisy = new android.content.IntentFilter(android.media.AudioManager.ACTION_AUDIO_BECOMING_NOISY);
+        if (Build.VERSION.SDK_INT >= 33) registerReceiver(noisyReceiver, noisy, android.content.Context.RECEIVER_NOT_EXPORTED);
+        else registerReceiver(noisyReceiver, noisy);
 
         mediaSession =
             new MediaSession(
@@ -120,6 +164,16 @@ public class MediaPlaybackService extends Service {
         int startId
     ) {
 
+        // Publish a foreground notification promptly, including during asynchronous preparation.
+        startForeground(NOTIFICATION_ID, createNotification());
+        if (intent == null) { stopSelf(); return START_NOT_STICKY; }
+        if (ACTION_STOP.equals(intent.getAction())) { releasePlayer(); stopForeground(true); stopSelf(); return START_NOT_STICKY; }
+        if (ACTION_LOAD.equals(intent.getAction())) {
+            currentTitle = intent.getStringExtra(EXTRA_TITLE) == null ? "Now Playing" : intent.getStringExtra(EXTRA_TITLE);
+            currentArtist = intent.getStringExtra(EXTRA_ARTIST) == null ? "" : intent.getStringExtra(EXTRA_ARTIST);
+            loadAudio(intent.getStringExtra("source"));
+            return START_NOT_STICKY;
+        }
         if (intent != null) {
 
             String action =
@@ -202,7 +256,7 @@ public class MediaPlaybackService extends Service {
             createNotification()
         );
 
-        return START_STICKY;
+        return START_NOT_STICKY;
     }
 
     private void setPlaying(
@@ -428,6 +482,11 @@ public class MediaPlaybackService extends Service {
         String action
     ) {
 
+        if (player != null) {
+            if (ACTION_PLAY.equals(action)) playNative();
+            else if (ACTION_PAUSE.equals(action) && prepared) { player.pause(); setPlaying(false); }
+            return;
+        }
         Intent intent =
             new Intent(action);
 
@@ -470,6 +529,9 @@ public class MediaPlaybackService extends Service {
 
     @Override
     public void onDestroy() {
+        releasePlayer();
+        try { unregisterReceiver(noisyReceiver); } catch (Exception ignored) { }
+
 
         if (mediaSession != null) {
 
