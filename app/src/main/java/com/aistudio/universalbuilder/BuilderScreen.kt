@@ -82,19 +82,21 @@ fun BuilderScreen(
 
     var previewStatus by remember {
         mutableStateOf(
-            if (projectUri != null)
+            if (projectUri != null) {
                 "✓ PROJECT RESTORED"
-            else
+            } else {
                 "NO PROJECT"
+            }
         )
     }
 
     var previewMessage by remember {
         mutableStateOf(
-            if (projectUri != null)
+            if (projectUri != null) {
                 "Project is ready."
-            else
+            } else {
                 "Upload a project first."
+            }
         )
     }
 
@@ -128,12 +130,12 @@ fun BuilderScreen(
         )
     }
 
-    // Read background build status.
     LaunchedEffect(Unit) {
         while (true) {
-            val state = withContext(Dispatchers.IO) {
-                BuildStatusHelper.getCurrentState(context)
-            }
+            val state =
+                withContext(Dispatchers.IO) {
+                    BuildStatusHelper.getCurrentState(context)
+                }
 
             isBuilding = state.isBuilding
             buildStatus = state.status
@@ -143,8 +145,11 @@ fun BuilderScreen(
             }
 
             delay(
-                if (state.isBuilding) 2000L
-                else 5000L
+                if (state.isBuilding) {
+                    2000L
+                } else {
+                    5000L
+                }
             )
         }
     }
@@ -165,11 +170,15 @@ fun BuilderScreen(
                             context.contentResolver
                                 .openOutputStream(uri)
                                 ?.use { output ->
-                                    apk.inputStream().use { input ->
-                                        input.copyTo(output)
-                                    }
+
+                                    apk.inputStream()
+                                        .use { input ->
+                                            input.copyTo(output)
+                                        }
                                 }
-                                ?: error("Unable to save APK")
+                                ?: error(
+                                    "Unable to save APK"
+                                )
                         }
 
                         buildStatus =
@@ -177,7 +186,9 @@ fun BuilderScreen(
 
                     } catch (e: Exception) {
                         buildStatus =
-                            "Save failed: ${e.message ?: "Unknown error"}"
+                            "Save failed: ${
+                                e.message ?: "Unknown error"
+                            }"
                     }
                 }
             }
@@ -287,6 +298,7 @@ fun BuilderScreen(
                 }
 
                 iconUri = uri
+
                 onIconSelected()
 
                 sessionStore.save(
@@ -302,29 +314,35 @@ fun BuilderScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF07090E))
+            .background(
+                Color(0xFF07090E)
+            )
             .verticalScroll(
                 rememberScrollState()
             )
             .padding(18.dp)
     ) {
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(
+            Modifier.height(22.dp)
+        )
 
         Text(
-            "UNIVERSAL BUILD STUDIO",
+            text = "UNIVERSAL BUILD STUDIO",
             color = Color.White,
             fontSize = 24.sp,
             fontWeight = FontWeight.Black
         )
 
         Text(
-            "Apps • Games • Web • Native",
+            text = "Apps • Games • Web • Native",
             color = Color(0xFF8E98A8),
             fontSize = 13.sp
         )
 
-        Spacer(Modifier.height(22.dp))
+        Spacer(
+            Modifier.height(22.dp)
+        )
 
         ProjectInfoCard(
             projectName = projectName,
@@ -336,11 +354,14 @@ fun BuilderScreen(
             }
         )
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(
+            Modifier.height(14.dp)
+        )
 
         BuilderCard(
             title = "APP ICON"
         ) {
+
             AppIconPicker(
                 iconUri = iconUri,
                 onClick = {
@@ -351,7 +372,9 @@ fun BuilderScreen(
             )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(
+            Modifier.height(14.dp)
+        )
 
         BuilderCard(
             title = "APP DETAILS"
@@ -360,6 +383,7 @@ fun BuilderScreen(
             OutlinedTextField(
                 value = appName,
                 onValueChange = {
+
                     onAppNameChange(it)
 
                     sessionStore.save(
@@ -385,6 +409,7 @@ fun BuilderScreen(
             OutlinedTextField(
                 value = packageName,
                 onValueChange = {
+
                     onPackageChange(it)
 
                     sessionStore.save(
@@ -404,7 +429,9 @@ fun BuilderScreen(
             )
         }
 
-        Spacer(Modifier.height(14.dp))
+        Spacer(
+            Modifier.height(14.dp)
+        )
 
         OutlinedButton(
             onClick = {
@@ -412,11 +439,15 @@ fun BuilderScreen(
                 val uri = projectUri
 
                 if (uri == null) {
+
                     previewVisible = true
+
                     previewStatus =
                         "✕ NO PROJECT"
+
                     previewMessage =
                         "Upload a project first."
+
                     return@OutlinedButton
                 }
 
@@ -450,6 +481,7 @@ fun BuilderScreen(
                             result.success &&
                             result.previewUrl != null
                         ) {
+
                             previewUrl =
                                 result.previewUrl
 
@@ -458,14 +490,20 @@ fun BuilderScreen(
 
                             previewMessage =
                                 "Interactive preview loaded."
+
                         } else {
+
                             previewUrl = null
 
                             previewStatus =
-                                if (projectType == "ZIP Project")
+                                if (
+                                    projectType ==
+                                    "ZIP Project"
+                                ) {
                                     "✓ BUILD ROUTE AVAILABLE"
-                                else
+                                } else {
                                     "✕ PREVIEW FAILED"
+                                }
 
                             previewMessage =
                                 result.message
@@ -480,6 +518,7 @@ fun BuilderScreen(
         ) {
 
             if (preparingPreview) {
+
                 CircularProgressIndicator(
                     modifier =
                         Modifier.size(18.dp),
@@ -492,10 +531,11 @@ fun BuilderScreen(
             }
 
             Text(
-                if (preparingPreview)
+                if (preparingPreview) {
                     "PREPARING..."
-                else
+                } else {
                     "PREVIEW APP"
+                }
             )
         }
 
@@ -533,6 +573,7 @@ fun BuilderScreen(
                 val uri = projectUri
 
                 when {
+
                     uri == null -> {
                         buildStatus =
                             "Select project first"
@@ -564,7 +605,10 @@ fun BuilderScreen(
                                 appName = appName,
                                 packageName = packageName,
                                 projectName = projectName,
-                                projectUri = uri.toString()
+                                projectUri =
+                                    uri.toString(),
+                                iconUri =
+                                    iconUri?.toString()
                             )
                     }
                 }
@@ -576,6 +620,7 @@ fun BuilderScreen(
         ) {
 
             if (isBuilding) {
+
                 CircularProgressIndicator(
                     modifier =
                         Modifier.size(20.dp),
@@ -588,12 +633,15 @@ fun BuilderScreen(
             }
 
             Text(
-                if (isBuilding)
-                    "BUILDING APK..."
-                else
-                    "BUILD APK",
+                text =
+                    if (isBuilding) {
+                        "BUILDING APK..."
+                    } else {
+                        "BUILD APK"
+                    },
                 fontSize = 17.sp,
-                fontWeight = FontWeight.Black
+                fontWeight =
+                    FontWeight.Black
             )
         }
 
@@ -607,7 +655,8 @@ fun BuilderScreen(
                 onClick = {
 
                     val safeName =
-                        appName.trim()
+                        appName
+                            .trim()
                             .replace(
                                 Regex(
                                     "[^A-Za-z0-9._-]"
@@ -626,8 +675,10 @@ fun BuilderScreen(
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
+
                 Text(
-                    "DOWNLOAD / SAVE APK",
+                    text =
+                        "DOWNLOAD / SAVE APK",
                     fontWeight =
                         FontWeight.Bold
                 )
@@ -645,11 +696,14 @@ fun BuilderScreen(
                             ?: return@OutlinedButton
 
                     try {
+
                         ApkInstaller.install(
                             context,
                             apk
                         )
+
                     } catch (e: Exception) {
+
                         buildStatus =
                             e.message
                                 ?: "Unable to install APK"
@@ -659,8 +713,9 @@ fun BuilderScreen(
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
+
                 Text(
-                    "INSTALL APK",
+                    text = "INSTALL APK",
                     fontWeight =
                         FontWeight.Bold
                 )
@@ -676,6 +731,7 @@ fun BuilderScreen(
             modifier =
                 Modifier.fillMaxWidth()
         ) {
+
             Text(
                 "GITHUB BUILDER SETTINGS"
             )
@@ -690,12 +746,13 @@ fun BuilderScreen(
             modifier =
                 Modifier.fillMaxWidth()
         ) {
+
             Text(
                 "BUILD HISTORY"
             )
         }
 
-        Spacer(
+                Spacer(
             Modifier.height(35.dp)
         )
     }
