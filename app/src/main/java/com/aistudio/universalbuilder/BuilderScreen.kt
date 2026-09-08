@@ -35,6 +35,7 @@ fun BuilderScreen(
     onOpenGitHub: () -> Unit,
     onOpenHistory: () -> Unit
 ) {
+
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -72,6 +73,10 @@ fun BuilderScreen(
         )
     }
 
+    var htmlCode by remember {
+        mutableStateOf("")
+    }
+
     var previewVisible by remember {
         mutableStateOf(false)
     }
@@ -95,7 +100,7 @@ fun BuilderScreen(
             if (projectUri != null) {
                 "Project is ready."
             } else {
-                "Upload a project first."
+                "Upload ZIP or paste HTML code."
             }
         )
     }
@@ -131,10 +136,13 @@ fun BuilderScreen(
     }
 
     LaunchedEffect(Unit) {
+
         while (true) {
+
             val state =
                 withContext(Dispatchers.IO) {
-                    BuildStatusHelper.getCurrentState(context)
+                    BuildStatusHelper
+                        .getCurrentState(context)
                 }
 
             isBuilding = state.isBuilding
@@ -164,9 +172,13 @@ fun BuilderScreen(
             val apk = generatedApk
 
             if (uri != null && apk != null) {
+
                 scope.launch {
+
                     try {
+
                         withContext(Dispatchers.IO) {
+
                             context.contentResolver
                                 .openOutputStream(uri)
                                 ?.use { output ->
@@ -185,9 +197,11 @@ fun BuilderScreen(
                             "APK SAVED SUCCESSFULLY ✓"
 
                     } catch (e: Exception) {
+
                         buildStatus =
                             "Save failed: ${
-                                e.message ?: "Unknown error"
+                                e.message
+                                    ?: "Unknown error"
                             }"
                     }
                 }
@@ -202,11 +216,13 @@ fun BuilderScreen(
             if (uri != null) {
 
                 try {
+
                     context.contentResolver
                         .takePersistableUriPermission(
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
+
                 } catch (_: Exception) {
                 }
 
@@ -223,6 +239,8 @@ fun BuilderScreen(
 
                 onProjectSelected(realName)
 
+                htmlCode = ""
+
                 sessionStore.save(
                     appName = appName,
                     packageName = packageName,
@@ -234,7 +252,9 @@ fun BuilderScreen(
                 generatedApk = null
                 previewUrl = null
                 previewVisible = false
-                buildStatus = "Project selected"
+
+                buildStatus =
+                    "Project selected ✓"
 
                 when (projectType) {
 
@@ -289,11 +309,13 @@ fun BuilderScreen(
             if (uri != null) {
 
                 try {
+
                     context.contentResolver
                         .takePersistableUriPermission(
                             uri,
                             Intent.FLAG_GRANT_READ_URI_PERMISSION
                         )
+
                 } catch (_: Exception) {
                 }
 
@@ -335,7 +357,7 @@ fun BuilderScreen(
         )
 
         Text(
-            text = "Apps • Games • Web • Native",
+            text = "ZIP • HTML Code • Apps • Games",
             color = Color(0xFF8E98A8),
             fontSize = 13.sp
         )
@@ -348,9 +370,80 @@ fun BuilderScreen(
             projectName = projectName,
             projectType = projectType,
             onUploadClick = {
+
                 projectPicker.launch(
                     arrayOf("*/*")
                 )
+            }
+        )
+
+        Spacer(
+            Modifier.height(14.dp)
+        )
+
+        CodePasteCard(
+            htmlCode = htmlCode,
+
+            onCodeChange = {
+                htmlCode = it
+            },
+
+            onUseCode = {
+
+                val result =
+                    CodeProjectCreator.create(
+                        context = context,
+                        html = htmlCode
+                    )
+
+                if (
+                    result.success &&
+                    result.uri != null
+                ) {
+
+                    val codeProjectName =
+                        "pasted-code-project.zip"
+
+                    projectUri =
+                        result.uri
+
+                    projectType =
+                        "Web / HTML Project"
+
+                    onProjectSelected(
+                        codeProjectName
+                    )
+
+                    generatedApk = null
+
+                    previewUrl = null
+
+                    previewVisible = false
+
+                    previewStatus =
+                        "✓ HTML CODE READY"
+
+                    previewMessage =
+                        "Pasted code is ready for APK build."
+
+                    buildStatus =
+                        "HTML code selected ✓"
+
+                    sessionStore.save(
+                        appName = appName,
+                        packageName = packageName,
+                        projectName = codeProjectName,
+                        projectUri =
+                            result.uri.toString(),
+                        iconUri =
+                            iconUri?.toString()
+                    )
+
+                } else {
+
+                    buildStatus =
+                        result.message
+                }
             }
         )
 
@@ -365,6 +458,7 @@ fun BuilderScreen(
             AppIconPicker(
                 iconUri = iconUri,
                 onClick = {
+
                     iconPicker.launch(
                         arrayOf("image/*")
                     )
@@ -382,6 +476,7 @@ fun BuilderScreen(
 
             OutlinedTextField(
                 value = appName,
+
                 onValueChange = {
 
                     onAppNameChange(it)
@@ -390,15 +485,20 @@ fun BuilderScreen(
                         appName = it,
                         packageName = packageName,
                         projectName = projectName,
-                        projectUri = projectUri?.toString(),
-                        iconUri = iconUri?.toString()
+                        projectUri =
+                            projectUri?.toString(),
+                        iconUri =
+                            iconUri?.toString()
                     )
                 },
+
                 label = {
                     Text("App Name")
                 },
+
                 modifier =
                     Modifier.fillMaxWidth(),
+
                 singleLine = true
             )
 
@@ -408,6 +508,7 @@ fun BuilderScreen(
 
             OutlinedTextField(
                 value = packageName,
+
                 onValueChange = {
 
                     onPackageChange(it)
@@ -416,15 +517,20 @@ fun BuilderScreen(
                         appName = appName,
                         packageName = it,
                         projectName = projectName,
-                        projectUri = projectUri?.toString(),
-                        iconUri = iconUri?.toString()
+                        projectUri =
+                            projectUri?.toString(),
+                        iconUri =
+                            iconUri?.toString()
                     )
                 },
+
                 label = {
                     Text("Package ID")
                 },
+
                 modifier =
                     Modifier.fillMaxWidth(),
+
                 singleLine = true
             )
         }
@@ -446,7 +552,7 @@ fun BuilderScreen(
                         "✕ NO PROJECT"
 
                     previewMessage =
-                        "Upload a project first."
+                        "Upload ZIP or use pasted HTML first."
 
                     return@OutlinedButton
                 }
@@ -454,8 +560,10 @@ fun BuilderScreen(
                 previewVisible = true
 
                 if (
-                    projectType == "Web / HTML Project" ||
-                    projectType == "ZIP Project"
+                    projectType ==
+                    "Web / HTML Project" ||
+                    projectType ==
+                    "ZIP Project"
                 ) {
 
                     preparingPreview = true
@@ -469,11 +577,13 @@ fun BuilderScreen(
                     scope.launch {
 
                         val result =
-                            PreviewManager.preparePreview(
-                                context = context,
-                                projectUri = uri,
-                                projectName = projectName
-                            )
+                            PreviewManager
+                                .preparePreview(
+                                    context = context,
+                                    projectUri = uri,
+                                    projectName =
+                                        projectName
+                                )
 
                         preparingPreview = false
 
@@ -511,7 +621,9 @@ fun BuilderScreen(
                     }
                 }
             },
+
             enabled = !preparingPreview,
+
             modifier = Modifier
                 .fillMaxWidth()
                 .height(54.dp)
@@ -534,7 +646,7 @@ fun BuilderScreen(
                 if (preparingPreview) {
                     "PREPARING..."
                 } else {
-                    "PREVIEW APP"
+                    "PREVIEW UPLOADED PROJECT"
                 }
             )
         }
@@ -549,7 +661,8 @@ fun BuilderScreen(
                 appName = appName,
                 projectType = projectType,
                 previewStatus = previewStatus,
-                previewMessage = previewMessage,
+                previewMessage =
+                    previewMessage,
                 previewUrl = previewUrl,
                 iconUri = iconUri
             )
@@ -575,16 +688,19 @@ fun BuilderScreen(
                 when {
 
                     uri == null -> {
+
                         buildStatus =
-                            "Select project first"
+                            "Upload ZIP or use pasted HTML first"
                     }
 
                     appName.isBlank() -> {
+
                         buildStatus =
                             "Enter app name"
                     }
 
                     packageName.isBlank() -> {
+
                         buildStatus =
                             "Enter package ID"
                     }
@@ -594,6 +710,7 @@ fun BuilderScreen(
                         saveSession()
 
                         generatedApk = null
+
                         isBuilding = true
 
                         buildStatus =
@@ -603,8 +720,10 @@ fun BuilderScreen(
                             .startBuild(
                                 context = context,
                                 appName = appName,
-                                packageName = packageName,
-                                projectName = projectName,
+                                packageName =
+                                    packageName,
+                                projectName =
+                                    projectName,
                                 projectUri =
                                     uri.toString(),
                                 iconUri =
@@ -613,7 +732,9 @@ fun BuilderScreen(
                     }
                 }
             },
+
             enabled = !isBuilding,
+
             modifier = Modifier
                 .fillMaxWidth()
                 .height(60.dp)
@@ -639,7 +760,9 @@ fun BuilderScreen(
                     } else {
                         "BUILD APK"
                     },
+
                 fontSize = 17.sp,
+
                 fontWeight =
                     FontWeight.Black
             )
@@ -671,6 +794,7 @@ fun BuilderScreen(
                         "$safeName.apk"
                     )
                 },
+
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
@@ -709,6 +833,7 @@ fun BuilderScreen(
                                 ?: "Unable to install APK"
                     }
                 },
+
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(56.dp)
@@ -752,7 +877,7 @@ fun BuilderScreen(
             )
         }
 
-                Spacer(
+        Spacer(
             Modifier.height(35.dp)
         )
     }
