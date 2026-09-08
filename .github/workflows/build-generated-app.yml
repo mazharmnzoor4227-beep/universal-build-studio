@@ -38,7 +38,7 @@ jobs:
           mkdir -p generated-project
           mkdir -p output
 
-      - name: Download Uploaded Project
+      - name: Download Project
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -46,7 +46,7 @@ jobs:
             --pattern "project-input.zip" \
             --dir generated-project
 
-      - name: Download App Icon
+      - name: Download Icon
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -55,12 +55,25 @@ jobs:
             --dir generated-project \
             || true
 
+      - name: Download Build Metadata
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download universal-builder-input \
+            --pattern "build-meta.json" \
+            --dir generated-project
+
       - name: Extract Project
         run: |
           cd generated-project
 
           if [ ! -f project-input.zip ]; then
-            echo "project-input.zip was not found."
+            echo "project-input.zip missing"
+            exit 1
+          fi
+
+          if [ ! -f build-meta.json ]; then
+            echo "build-meta.json missing"
             exit 1
           fi
 
@@ -105,20 +118,20 @@ jobs:
             echo "PROJECT_TYPE=UNKNOWN" >> "$GITHUB_ENV"
           fi
 
-      - name: Build Android Project With Wrapper
+      - name: Build Android Wrapper Project
         if: env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER'
         run: |
           cd "$PROJECT_ROOT"
           chmod +x gradlew
           ./gradlew assembleDebug --stacktrace
 
-      - name: Build Android Project With Gradle
+      - name: Build Android Gradle Project
         if: env.PROJECT_TYPE == 'ANDROID_GRADLE'
         run: |
           cd "$PROJECT_ROOT"
           gradle assembleDebug --stacktrace
 
-      - name: Build Web Project APK
+      - name: Build Web APK
         if: |
           env.PROJECT_TYPE == 'WEB' ||
           env.PROJECT_TYPE == 'NODE_WEB'
@@ -128,7 +141,8 @@ jobs:
           scripts/build-web-apk.sh \
             "$PROJECT_ROOT" \
             "$GITHUB_WORKSPACE/output" \
-            "$GITHUB_WORKSPACE/generated-project/app-icon.png"
+            "$GITHUB_WORKSPACE/generated-project/app-icon.png" \
+            "$GITHUB_WORKSPACE/generated-project/build-meta.json"
 
       - name: Find Android APK
         if: |
@@ -141,29 +155,28 @@ jobs:
             | head -n 1)"
 
           if [ -z "$APK" ]; then
-            echo "No APK was produced."
+            echo "No APK produced"
             exit 1
           fi
 
           cp "$APK" output/generated-app.apk
 
-      - name: Godot Adapter Status
+      - name: Godot Not Supported Yet
         if: env.PROJECT_TYPE == 'GODOT'
         run: |
-          echo "Godot project detected."
-          echo "Godot Android adapter not added yet."
+          echo "Godot adapter not added yet"
           exit 1
 
-      - name: Unsupported Project Error
+      - name: Unsupported Project
         if: env.PROJECT_TYPE == 'UNKNOWN'
         run: |
-          echo "Unsupported or incomplete project."
+          echo "Unsupported project"
           exit 1
 
       - name: Verify APK
         run: |
           if [ ! -f output/generated-app.apk ]; then
-            echo "Generated APK not found."
+            echo "Generated APK missing"
             exit 1
           fi
 
