@@ -3,6 +3,7 @@ package com.generated.webapp;
 import android.Manifest;
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -10,6 +11,7 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.MediaStore;
 
 import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
@@ -22,12 +24,20 @@ import android.webkit.WebViewClient;
 public class MainActivity extends Activity {
 
     private WebView webView;
-    private ValueCallback<Uri[]> fileCallback;
 
-    private static final int FILE_REQUEST = 1001;
-    private static final int PERMISSION_REQUEST = 2001;
+    private ValueCallback<Uri[]>
+        fileCallback;
 
-    private final BroadcastReceiver mediaReceiver =
+    private Uri cameraUri;
+
+    private static final int
+        FILE_REQUEST = 1001;
+
+    private static final int
+        PERMISSION_REQUEST = 2001;
+
+    private final BroadcastReceiver
+        mediaReceiver =
         new BroadcastReceiver() {
 
             @Override
@@ -36,7 +46,8 @@ public class MainActivity extends Activity {
                 Intent intent
             ) {
 
-                String action = intent.getAction();
+                String action =
+                    intent.getAction();
 
                 if (
                     MediaPlaybackService.ACTION_PLAY
@@ -64,8 +75,8 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "window.dispatchEvent(" +
-                        "new CustomEvent('native-media-next'));" +
+                        "window.dispatchEvent(new CustomEvent(" +
+                        "'native-media-next'));" +
                         "var b=document.querySelector(" +
                         "'[data-media-next],.next,.next-button');" +
                         "if(b){b.click();}"
@@ -77,10 +88,11 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "window.dispatchEvent(" +
-                        "new CustomEvent('native-media-previous'));" +
+                        "window.dispatchEvent(new CustomEvent(" +
+                        "'native-media-previous'));" +
                         "var b=document.querySelector(" +
-                        "'[data-media-previous],.previous,.prev,.prev-button');" +
+                        "'[data-media-previous],.previous," +
+                        ".prev,.prev-button');" +
                         "if(b){b.click();}"
                     );
                 }
@@ -92,15 +104,20 @@ public class MainActivity extends Activity {
         Bundle savedInstanceState
     ) {
 
-        super.onCreate(savedInstanceState);
+        super.onCreate(
+            savedInstanceState
+        );
 
         requestPermissionsNeeded();
 
         registerMediaReceiver();
 
-        webView = new WebView(this);
+        webView =
+            new WebView(this);
 
-        setContentView(webView);
+        setContentView(
+            webView
+        );
 
         WebSettings settings =
             webView.getSettings();
@@ -145,66 +162,30 @@ public class MainActivity extends Activity {
 
                 @Override
                 public boolean onShowFileChooser(
-                    WebView webView,
+                    WebView view,
                     ValueCallback<Uri[]> callback,
                     FileChooserParams params
                 ) {
 
                     if (fileCallback != null) {
-                        fileCallback.onReceiveValue(null);
-                    }
-
-                    fileCallback = callback;
-
-                    try {
-
-                        Intent intent =
-                            params.createIntent();
-
-                        intent.addCategory(
-                            Intent.CATEGORY_OPENABLE
-                        );
-
-                        intent.putExtra(
-                            Intent.EXTRA_ALLOW_MULTIPLE,
-                            true
-                        );
-
-                        startActivityForResult(
-                            intent,
-                            FILE_REQUEST
-                        );
-
-                    } catch (Exception e) {
-
-                        Intent intent =
-                            new Intent(
-                                Intent.ACTION_OPEN_DOCUMENT
-                            );
-
-                        intent.addCategory(
-                            Intent.CATEGORY_OPENABLE
-                        );
-
-                        intent.setType("*/*");
-
-                        intent.putExtra(
-                            Intent.EXTRA_ALLOW_MULTIPLE,
-                            true
-                        );
-
-                        startActivityForResult(
-                            intent,
-                            FILE_REQUEST
+                        fileCallback.onReceiveValue(
+                            null
                         );
                     }
+
+                    fileCallback =
+                        callback;
+
+                    openFileChooser(
+                        params
+                    );
 
                     return true;
                 }
 
                 @Override
                 public void onPermissionRequest(
-                    final PermissionRequest request
+                    PermissionRequest request
                 ) {
 
                     runOnUiThread(
@@ -219,6 +200,136 @@ public class MainActivity extends Activity {
         webView.loadUrl(
             "file:///android_asset/www/index.html"
         );
+    }
+
+    private void openFileChooser(
+        WebChromeClient.FileChooserParams params
+    ) {
+
+        Intent fileIntent;
+
+        try {
+
+            fileIntent =
+                params.createIntent();
+
+        } catch (Exception e) {
+
+            fileIntent =
+                new Intent(
+                    Intent.ACTION_OPEN_DOCUMENT
+                );
+
+            fileIntent.addCategory(
+                Intent.CATEGORY_OPENABLE
+            );
+
+            fileIntent.setType(
+                "*/*"
+            );
+        }
+
+        fileIntent.putExtra(
+            Intent.EXTRA_ALLOW_MULTIPLE,
+            true
+        );
+
+        Intent cameraIntent =
+            new Intent(
+                MediaStore.ACTION_IMAGE_CAPTURE
+            );
+
+        cameraUri =
+            createCameraUri();
+
+        if (cameraUri != null) {
+
+            cameraIntent.putExtra(
+                MediaStore.EXTRA_OUTPUT,
+                cameraUri
+            );
+
+            cameraIntent.addFlags(
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+                    |
+                Intent.FLAG_GRANT_READ_URI_PERMISSION
+            );
+        }
+
+        Intent chooser =
+            Intent.createChooser(
+                fileIntent,
+                "Select file or camera"
+            );
+
+        if (
+            cameraIntent.resolveActivity(
+                getPackageManager()
+            ) != null
+        ) {
+
+            chooser.putExtra(
+                Intent.EXTRA_INITIAL_INTENTS,
+                new Intent[]{
+                    cameraIntent
+                }
+            );
+        }
+
+        try {
+
+            startActivityForResult(
+                chooser,
+                FILE_REQUEST
+            );
+
+        } catch (Exception e) {
+
+            fileCallback.onReceiveValue(
+                null
+            );
+
+            fileCallback = null;
+        }
+    }
+
+    private Uri createCameraUri() {
+
+        try {
+
+            ContentValues values =
+                new ContentValues();
+
+            values.put(
+                MediaStore.Images.Media.DISPLAY_NAME,
+                "camera_" +
+                    System.currentTimeMillis() +
+                    ".jpg"
+            );
+
+            values.put(
+                MediaStore.Images.Media.MIME_TYPE,
+                "image/jpeg"
+            );
+
+            if (Build.VERSION.SDK_INT >= 29) {
+
+                values.put(
+                    MediaStore.Images.Media.RELATIVE_PATH,
+                    "Pictures/GeneratedApps"
+                );
+            }
+
+            return getContentResolver()
+                .insert(
+                    MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+                    values
+                );
+
+        } catch (Exception e) {
+
+            return null;
+        }
     }
 
     private void registerMediaReceiver() {
@@ -266,36 +377,40 @@ public class MainActivity extends Activity {
             "if(window.__nativeMediaReady)return;" +
             "window.__nativeMediaReady=true;" +
 
-            "function info(m,playing){" +
-            "var title=m.dataset.title||" +
+            "function update(m,p){" +
+
+            "var title=" +
+            "m.dataset.title||" +
             "m.getAttribute('title')||" +
             "document.title||'Now Playing';" +
 
-            "var artist=m.dataset.artist||" +
-            "'Generated App';" +
+            "var artist=" +
+            "m.dataset.artist||" +
+            "'Media Player';" +
 
             "if(window.NativeMedia){" +
             "NativeMedia.updateMedia(" +
-            "title,artist,playing);" +
+            "title,artist,p);" +
             "}" +
+
             "}" +
 
             "document.addEventListener(" +
             "'play',function(e){" +
             "if(e.target.matches('audio,video')){" +
-            "info(e.target,true);" +
+            "update(e.target,true);" +
             "}},true);" +
 
             "document.addEventListener(" +
             "'pause',function(e){" +
             "if(e.target.matches('audio,video')){" +
-            "info(e.target,false);" +
+            "update(e.target,false);" +
             "}},true);" +
 
             "document.addEventListener(" +
             "'ended',function(e){" +
             "if(e.target.matches('audio,video')){" +
-            "info(e.target,false);" +
+            "update(e.target,false);" +
             "}},true);" +
 
             "})();"
@@ -303,7 +418,7 @@ public class MainActivity extends Activity {
     }
 
     private void runJs(
-        String javascript
+        String code
     ) {
 
         if (webView == null) {
@@ -311,10 +426,11 @@ public class MainActivity extends Activity {
         }
 
         webView.post(
-            () -> webView.evaluateJavascript(
-                javascript,
-                null
-            )
+            () ->
+                webView.evaluateJavascript(
+                    code,
+                    null
+                )
         );
     }
 
@@ -354,11 +470,15 @@ public class MainActivity extends Activity {
 
             if (Build.VERSION.SDK_INT >= 26) {
 
-                startForegroundService(intent);
+                startForegroundService(
+                    intent
+                );
 
             } else {
 
-                startService(intent);
+                startService(
+                    intent
+                );
             }
         }
     }
@@ -377,6 +497,7 @@ public class MainActivity extends Activity {
                 Manifest.permission.CAMERA
             ) != PackageManager.PERMISSION_GRANTED
         ) {
+
             list.add(
                 Manifest.permission.CAMERA
             );
@@ -387,28 +508,30 @@ public class MainActivity extends Activity {
                 Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
+
             list.add(
                 Manifest.permission.RECORD_AUDIO
             );
         }
 
-        if (Build.VERSION.SDK_INT >= 33) {
+        if (
+            Build.VERSION.SDK_INT >= 33 &&
+            checkSelfPermission(
+                Manifest.permission.POST_NOTIFICATIONS
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
 
-            if (
-                checkSelfPermission(
-                    Manifest.permission.POST_NOTIFICATIONS
-                ) != PackageManager.PERMISSION_GRANTED
-            ) {
-                list.add(
-                    Manifest.permission.POST_NOTIFICATIONS
-                );
-            }
+            list.add(
+                Manifest.permission.POST_NOTIFICATIONS
+            );
         }
 
         if (!list.isEmpty()) {
 
             requestPermissions(
-                list.toArray(new String[0]),
+                list.toArray(
+                    new String[0]
+                ),
                 PERMISSION_REQUEST
             );
         }
@@ -447,7 +570,8 @@ public class MainActivity extends Activity {
                     data.getClipData()
                         .getItemCount();
 
-                result = new Uri[count];
+                result =
+                    new Uri[count];
 
                 for (
                     int i = 0;
@@ -470,6 +594,15 @@ public class MainActivity extends Activity {
                     new Uri[]{
                         data.getData()
                     };
+
+            } else if (
+                cameraUri != null
+            ) {
+
+                result =
+                    new Uri[]{
+                        cameraUri
+                    };
             }
         }
 
@@ -478,6 +611,7 @@ public class MainActivity extends Activity {
         );
 
         fileCallback = null;
+        cameraUri = null;
     }
 
     @Override
@@ -500,12 +634,14 @@ public class MainActivity extends Activity {
     protected void onDestroy() {
 
         try {
+
             unregisterReceiver(
                 mediaReceiver
             );
+
         } catch (Exception ignored) {
         }
 
         super.onDestroy();
     }
-              }
+}
