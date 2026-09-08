@@ -2,8 +2,6 @@ package com.aistudio.universalbuilder
 
 import android.content.Context
 import android.net.Uri
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 import java.io.File
 
 data class BuildRequest(
@@ -26,155 +24,151 @@ class BuildController(
 
     suspend fun startBuild(
         request: BuildRequest
-    ): BuildResult =
-        withContext(Dispatchers.IO) {
+    ): BuildResult {
 
-            try {
+        return try {
 
-                val config =
-                    GitHubConfigStore(context)
-                        .load()
+            val config =
+                GitHubConfigStore(context).load()
 
-                if (
-                    config.username.isBlank() ||
-                    config.repository.isBlank() ||
-                    config.token.isBlank()
-                ) {
-                    return@withContext BuildResult(
-                        false,
-                        "GitHub Builder is not configured"
-                    )
-                }
+            if (
+                config.username.isBlank() ||
+                config.repository.isBlank() ||
+                config.token.isBlank()
+            ) {
+                return BuildResult(
+                    false,
+                    "GitHub Builder is not configured"
+                )
+            }
 
-                val connection =
-                    GitHubApiClient.testConnection(
-                        config.username,
-                        config.repository,
-                        config.token
-                    )
+            val projectUpload =
+                ProjectTransport.uploadProject(
+                    context = context,
+                    projectUri = request.projectUri,
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token
+                )
 
-                if (connection.isFailure) {
-                    return@withContext BuildResult(
-                        false,
-                        "GitHub connection failed"
-                    )
-                }
+            if (!projectUpload.success) {
+                return BuildResult(
+                    false,
+                    projectUpload.message
+                )
+            }
 
-                val upload =
-                    ProjectTransport.uploadProject(
+            if (request.iconUri != null) {
+
+                val iconUpload =
+                    IconTransport.uploadIcon(
                         context = context,
-                        projectUri = request.projectUri,
+                        iconUri = request.iconUri,
                         username = config.username,
                         repository = config.repository,
                         token = config.token
                     )
 
-                if (!upload.success) {
-                    return@withContext BuildResult(
+                if (!iconUpload.success) {
+                    return BuildResult(
                         false,
-                        upload.message
+                        iconUpload.message
                     )
                 }
+            }
 
-                val selectedIcon =
-                    request.iconUri
-
-                if (selectedIcon != null) {
-
-                    val iconUpload =
-                        IconTransport.uploadIcon(
-                            context = context,
-                            iconUri = selectedIcon,
-                            username = config.username,
-                            repository = config.repository,
-                            token = config.token
-                        )
-
-                    if (!iconUpload.success) {
-                        return@withContext BuildResult(
-                            false,
-                            iconUpload.message
-                        )
-                    }
-                }
-
-                val previousRunId =
-                    BuildMonitor.latestRunId(
-                        config.username,
-                        config.repository,
-                        config.token
-                    )
-
-                val trigger =
-                    GitHubApiClient.triggerWorkflow(
-                        username = config.username,
-                        repository = config.repository,
-                        token = config.token,
-                        workflowFile =
-                            "build-generated-app.yml"
-                    )
-
-                if (trigger.isFailure) {
-                    return@withContext BuildResult(
-                        false,
-                        "Workflow trigger failed"
-                    )
-                }
-
-                val monitor =
-                    BuildMonitor.waitForBuild(
-                        username = config.username,
-                        repository = config.repository,
-                        token = config.token,
-                        afterRunId = previousRunId
-                    )
-
-                if (!monitor.success) {
-                    return@withContext BuildResult(
-                        false,
-                        monitor.message
-                    )
-                }
-
-                val artifactId =
-                    monitor.artifactId
-                        ?: return@withContext BuildResult(
-                            false,
-                            "APK artifact not found"
-                        )
-
-                val download =
-                    ApkDownloader.downloadArtifact(
-                        context = context,
-                        username = config.username,
-                        repository = config.repository,
-                        token = config.token,
-                        artifactId = artifactId
-                    )
-
-                if (
-                    !download.success ||
-                    download.apkFile == null
-                ) {
-                    return@withContext BuildResult(
-                        false,
-                        download.message
-                    )
-                }
-
-                BuildResult(
-                    success = true,
-                    message = "APK READY",
-                    apkFile = download.apkFile
+            val metaUpload =
+                BuildMetaTransport.uploadMeta(
+                    appName = request.appName,
+                    packageName = request.packageName,
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token
                 )
 
-            } catch (e: Exception) {
-
-                BuildResult(
-                    success = false,
-                    message =
-                        e.message ?: "Build failed"
+            if (!metaUpload.success) {
+                return BuildResult(
+                    false,
+                    metaUpload.message
                 )
             }
+
+            val previousRunId =
+                BuildMonitor.latestRunId(
+                    config.username,
+                    config.repository,
+                    config.token
+                )
+
+            val trigger =
+                GitHubApiClient.triggerWorkflow(
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token,
+                    workflowFile =
+                        "build-generated-app.yml"
+                )
+
+            if (trigger.isFailure) {
+                return BuildResult(
+                    false,
+                    "Workflow trigger failed"
+                )
+            }
+
+            val monitor =
+                BuildMonitor.waitForBuild(
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token,
+                    afterRunId = previousRunId
+                )
+
+            if (!monitor.success) {
+                return BuildResult(
+                    false,
+                    monitor.message
+                )
+            }
+
+            val artifactId =
+                monitor.artifactId
+                    ?: return BuildResult(
+                        false,
+                        "APK artifact not found"
+                    )
+
+            val download =
+                ApkDownloader.downloadArtifact(
+                    context = context,
+                    username = config.username,
+                    repository = config.repository,
+                    token = config.token,
+                    artifactId = artifactId
+                )
+
+            if (
+                !download.success ||
+                download.apkFile == null
+            ) {
+                return BuildResult(
+                    false,
+                    download.message
+                )
+            }
+
+            BuildResult(
+                true,
+                "APK READY",
+                download.apkFile
+            )
+
+        } catch (e: Exception) {
+
+            BuildResult(
+                false,
+                e.message ?: "Build failed"
+            )
         }
+    }
 }
