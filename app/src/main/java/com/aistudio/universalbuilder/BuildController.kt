@@ -58,9 +58,9 @@ class BuildController(
                 )
             }
 
-            if (request.iconUri != null) {
+            val iconResult =
+                if (request.iconUri != null) {
 
-                val iconUpload =
                     IconTransport.uploadIcon(
                         context = context,
                         iconUri = request.iconUri,
@@ -69,12 +69,20 @@ class BuildController(
                         token = config.token
                     )
 
-                if (!iconUpload.success) {
-                    return BuildResult(
-                        false,
-                        iconUpload.message
+                } else {
+
+                    IconTransport.clearIcon(
+                        username = config.username,
+                        repository = config.repository,
+                        token = config.token
                     )
                 }
+
+            if (!iconResult.success) {
+                return BuildResult(
+                    false,
+                    iconResult.message
+                )
             }
 
             val metaUpload =
