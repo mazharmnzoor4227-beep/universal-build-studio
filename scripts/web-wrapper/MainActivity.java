@@ -28,6 +28,10 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private JSONObject builderOptions = new JSONObject();
+    private boolean option(String name) { return builderOptions.optBoolean(name, false); }
+    private static final String APP_ORIGIN = "https://appassets.androidplatform.net";
+
 
     private WebView webView;
 
@@ -61,8 +65,7 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "var m=document.querySelector(" +
-                        "'audio:not([paused]),video:not([paused])');" +
+                        "var m=window.__activeNativeMedia;" +
                         "if(!m)m=document.querySelector('audio,video');" +
                         "if(m)m.play();"
                     );
@@ -73,7 +76,7 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "var m=document.querySelector('audio,video');" +
+                        "var m=window.__activeNativeMedia||document.querySelector('audio,video');" +
                         "if(m)m.pause();"
                     );
 
@@ -116,6 +119,13 @@ public class MainActivity extends Activity {
             webView
         );
 
+        try (java.io.InputStream stream = getAssets().open("builder-options.json")) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[1024]; int n;
+            while ((n = stream.read(buf)) != -1) out.write(buf, 0, n);
+            builderOptions = new JSONObject(out.toString("UTF-8"));
+        } catch (Exception ignored) { }
+        if (option("fullscreen")) getWindow().setFlags(1024, 1024);
         configureWebView();
 
         registerMediaReceiver();
@@ -123,7 +133,7 @@ public class MainActivity extends Activity {
         requestMediaPermissions();
 
         webView.loadUrl(
-            "file:///android_asset/www/index.html"
+            APP_ORIGIN + "/assets/www/index.html"
         );
     }
 
@@ -145,18 +155,38 @@ public class MainActivity extends Activity {
             false
         );
 
-        webView.addJavascriptInterface(
+        if (option("media")) webView.addJavascriptInterface(
             new NativeMediaBridge(),
             "NativeMedia"
         );
 
-        webView.addJavascriptInterface(
+        if (option("library")) webView.addJavascriptInterface(
             new NativeLibraryBridge(),
             "NativeLibrary"
         );
 
+        final androidx.webkit.WebViewAssetLoader loader = new androidx.webkit.WebViewAssetLoader.Builder()
+            .addPathHandler("/assets/", new androidx.webkit.WebViewAssetLoader.AssetsPathHandler(this)).build();
         webView.setWebViewClient(
             new WebViewClient() {
+                @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
+                    android.webkit.WebResourceResponse response = loader.shouldInterceptRequest(request.getUrl());
+                    if (response != null) {
+                        java.util.Map<String, String> headers = new java.util.HashMap<>();
+                        headers.put("Content-Security-Policy", "frame-src 'none'; object-src 'none'");
+                        response.setResponseHeaders(headers);
+                    }
+                    return response;
+                }
+                @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                    Uri uri = request.getUrl();
+                    if ("https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost()) && (uri.getPort() == -1 || uri.getPort() == 443)) return false;
+                    if (request.isForMainFrame() && java.util.Arrays.asList("https", "http", "mailto", "tel", "sms").contains(uri.getScheme())) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) { }
+                    }
+                    return true;
+                }
+
 
                 @Override
                 public void onPageFinished(
@@ -312,6 +342,11 @@ public class MainActivity extends Activity {
             );
         }
 
+        list.removeIf(permission ->
+            (permission.equals(Manifest.permission.CAMERA) && !option("camera")) ||
+            (permission.equals(Manifest.permission.RECORD_AUDIO) && !option("microphone")) ||
+            (permission.equals(Manifest.permission.POST_NOTIFICATIONS) && !option("media")) ||
+            (permission.startsWith("android.permission.READ_") && !option("library")));
         if (!list.isEmpty()) {
 
             requestPermissions(
@@ -889,7 +924,7 @@ public class MainActivity extends Activity {
             "if(window.__mediaBridge)return;" +
             "window.__mediaBridge=true;" +
 
-            "function update(m,p){" +
+            "function update(m,p){window.__activeNativeMedia=m;" +
 
             "var t=" +
             "m.dataset.title||" +

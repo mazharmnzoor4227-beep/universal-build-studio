@@ -32,7 +32,7 @@ object ApkDownloader {
             val workDir =
                 File(
                     context.cacheDir,
-                    "generated_apk"
+                    "generated_apk_pending"
                 )
 
             if (workDir.exists()) {
@@ -113,9 +113,15 @@ object ApkDownloader {
                 )
             }
 
+            require(context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0) != null) { "Downloaded file is not a valid APK" }
+            val saved = File(context.filesDir, "latest-generated.apk")
+            val pending = File(context.filesDir, "latest-generated.apk.new")
+            apkFile.copyTo(pending, overwrite = true)
+            require(pending.renameTo(saved)) { "Could not replace saved APK" }
+            workDir.deleteRecursively()
             ApkDownloadResult(
                 success = true,
-                apkFile = apkFile,
+                apkFile = saved,
                 message =
                     "APK downloaded successfully"
             )

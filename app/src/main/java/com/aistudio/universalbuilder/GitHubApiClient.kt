@@ -79,7 +79,8 @@ object GitHubApiClient {
             val json =
                 """
                 {
-                  "ref": "main"
+                  "ref": "main",
+                    "inputs": {"request_id": "$requestId"}
                 }
                 """.trimIndent()
 

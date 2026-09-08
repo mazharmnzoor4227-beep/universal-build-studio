@@ -1,191 +1,114 @@
 name: Build Generated App
-
+run-name: Build ${{ inputs.request_id || 'legacy' }}
 on:
   workflow_dispatch:
-
+    inputs:
+      request_id:
+        description: Unique builder request ID (empty for legacy app)
+        required: false
+        type: string
 permissions:
   contents: read
-  actions: write
-
+concurrency:
+  group: generated-${{ inputs.request_id || 'legacy' }}
+  cancel-in-progress: false
 jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 45
-
     steps:
-      - name: Checkout Builder Repository
-        uses: actions/checkout@v4
-
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
+          java-version: '17'
+      - uses: actions/setup-node@v4
         with:
-          node-version: "20"
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+          node-version: '22'
+      - uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.11.1"
-
-      - name: Prepare Workspace
-        run: |
-          rm -rf generated-project
-          mkdir -p generated-project
-          mkdir -p output
-
-      - name: Download Project
+          gradle-version: '8.11.1'
+          cache-disabled: true
+      - name: Download inputs
         env:
           GH_TOKEN: ${{ github.token }}
+          REQUEST_ID: ${{ inputs.request_id }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh release download universal-builder-input \
-            --pattern "project-input.zip" \
-            --dir generated-project
-
-      - name: Download Icon
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download universal-builder-input \
-            --pattern "app-icon.png" \
-            --dir generated-project \
-            || true
-
-      - name: Download Build Metadata
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release download universal-builder-input \
-            --pattern "build-meta.json" \
-            --dir generated-project
-
-      - name: Extract Project
-        run: |
-          cd generated-project
-
-          if [ ! -f project-input.zip ]; then
-            echo "project-input.zip missing"
-            exit 1
+          set -euo pipefail
+          if [[ -n "$REQUEST_ID" && ! "$REQUEST_ID" =~ ^[a-f0-9-]{36}$ ]]; then
+            echo "Invalid request ID"; exit 1
           fi
-
-          if [ ! -f build-meta.json ]; then
-            echo "build-meta.json missing"
-            exit 1
-          fi
-
-          mkdir source
-          unzip -q project-input.zip -d source
-          rm project-input.zip
-
-      - name: Find Project Root
+          TAG="universal-builder-input"
+          if [[ -n "$REQUEST_ID" ]]; then TAG="builder-$REQUEST_ID"; fi
+          mkdir -p generated-project output
+          gh release download "$TAG" --pattern project-input.zip --dir generated-project
+          gh release download "$TAG" --pattern build-meta.json --dir generated-project
+          gh release download "$TAG" --pattern app-icon.png --dir generated-project || true
+      - name: Validate and extract project
+        run: python3 scripts/prepare-project.py generated-project/project-input.zip generated-project/source
+      - name: Install Flutter
+        if: env.PROJECT_TYPE == 'FLUTTER'
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: false
+      - name: Build Flutter APK
+        if: env.PROJECT_TYPE == 'FLUTTER'
         run: |
-          cd generated-project/source
-
-          PROJECT_ROOT="$(pwd)"
-          FIRST_DIR="$(find . -mindepth 1 -maxdepth 1 -type d | head -n 1)"
-          ROOT_FILES="$(find . -mindepth 1 -maxdepth 1 -type f | wc -l)"
-
-          if [ "$ROOT_FILES" -eq 0 ] && [ -n "$FIRST_DIR" ]; then
-            PROJECT_ROOT="$(cd "$FIRST_DIR" && pwd)"
-          fi
-
-          echo "PROJECT_ROOT=$PROJECT_ROOT" >> "$GITHUB_ENV"
-
-      - name: Detect Project Type
-        run: |
+          set -euo pipefail
           cd "$PROJECT_ROOT"
-
-          if [ -f gradlew ]; then
-            echo "PROJECT_TYPE=ANDROID_GRADLE_WRAPPER" >> "$GITHUB_ENV"
-
-          elif [ -f settings.gradle.kts ] || [ -f settings.gradle ]; then
-            echo "PROJECT_TYPE=ANDROID_GRADLE" >> "$GITHUB_ENV"
-
-          elif [ -f project.godot ]; then
-            echo "PROJECT_TYPE=GODOT" >> "$GITHUB_ENV"
-
-          elif [ -f package.json ]; then
-            echo "PROJECT_TYPE=NODE_WEB" >> "$GITHUB_ENV"
-
-          elif [ -f index.html ]; then
-            echo "PROJECT_TYPE=WEB" >> "$GITHUB_ENV"
-
-          else
-            echo "PROJECT_TYPE=UNKNOWN" >> "$GITHUB_ENV"
+          if [[ ! -d android ]]; then
+            echo "Include the complete Flutter Android project, including android/"; exit 1
           fi
-
-      - name: Build Android Wrapper Project
-        if: env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER'
+          flutter pub get
+          flutter build apk --debug
+          cp build/app/outputs/flutter-apk/app-debug.apk "$GITHUB_WORKSPACE/output/generated-app.apk"
+      - name: Build Android APK
+        if: env.PROJECT_TYPE == 'ANDROID'
         run: |
+          set -euo pipefail
           cd "$PROJECT_ROOT"
-          chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace
-
-      - name: Build Android Gradle Project
-        if: env.PROJECT_TYPE == 'ANDROID_GRADLE'
-        run: |
-          cd "$PROJECT_ROOT"
-          gradle assembleDebug --stacktrace
-
+          if [[ -f gradlew ]]; then chmod +x gradlew; ./gradlew assembleDebug --stacktrace
+          else gradle assembleDebug --stacktrace; fi
+          mapfile -t APKS < <(find . -path '*/build/outputs/apk/*' -name '*.apk' ! -name '*androidTest*' ! -name '*unaligned*')
+          if [[ "${#APKS[@]}" != 1 ]]; then
+            echo "Expected one debug APK; use a single application module/variant. Found ${#APKS[@]}"; exit 1
+          fi
+          cp "${APKS[0]}" "$GITHUB_WORKSPACE/output/generated-app.apk"
       - name: Build Web APK
-        if: |
-          env.PROJECT_TYPE == 'WEB' ||
-          env.PROJECT_TYPE == 'NODE_WEB'
-        run: |
-          chmod +x scripts/build-web-apk.sh
-
-          scripts/build-web-apk.sh \
-            "$PROJECT_ROOT" \
-            "$GITHUB_WORKSPACE/output" \
-            "$GITHUB_WORKSPACE/generated-project/app-icon.png" \
-            "$GITHUB_WORKSPACE/generated-project/build-meta.json"
-
-      - name: Find Android APK
-        if: |
-          env.PROJECT_TYPE == 'ANDROID_GRADLE_WRAPPER' ||
-          env.PROJECT_TYPE == 'ANDROID_GRADLE'
-        run: |
-          APK="$(find "$PROJECT_ROOT" -type f -name "*.apk" \
-            ! -name "*androidTest*" \
-            ! -name "*unaligned*" \
-            | head -n 1)"
-
-          if [ -z "$APK" ]; then
-            echo "No APK produced"
-            exit 1
-          fi
-
-          cp "$APK" output/generated-app.apk
-
-      - name: Godot Not Supported Yet
+        if: env.PROJECT_TYPE == 'WEB' || env.PROJECT_TYPE == 'NODE_WEB'
+        run: bash scripts/build-web-apk.sh "$PROJECT_ROOT" "$GITHUB_WORKSPACE/output" "$GITHUB_WORKSPACE/generated-project/app-icon.png" "$GITHUB_WORKSPACE/generated-project/build-meta.json"
+      - name: Godot unsupported
         if: env.PROJECT_TYPE == 'GODOT'
         run: |
-          echo "Godot adapter not added yet"
+          echo "Godot Android export is not implemented; upload a supported complete project."
           exit 1
-
-      - name: Unsupported Project
-        if: env.PROJECT_TYPE == 'UNKNOWN'
+      - name: Verify APK structure
         run: |
-          echo "Unsupported project"
-          exit 1
-
-      - name: Verify APK
-        run: |
-          if [ ! -f output/generated-app.apk ]; then
-            echo "Generated APK missing"
-            exit 1
-          fi
-
-          ls -lh output/generated-app.apk
-
-      - name: Upload Generated APK
-        uses: actions/upload-artifact@v4
+          test -s output/generated-app.apk
+          unzip -t output/generated-app.apk >/dev/null
+          unzip -l output/generated-app.apk | grep AndroidManifest.xml
+      - uses: actions/upload-artifact@v4
         with:
           name: generated-apk
           path: output/generated-app.apk
           retention-days: 1
           if-no-files-found: error
+  cleanup:
+    needs: build
+    if: always() && inputs.request_id != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Remove this request's input assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          [[ "$REQUEST_ID" =~ ^[a-f0-9-]{36}$ ]] || exit 1
+          gh release delete "builder-$REQUEST_ID" --yes --cleanup-tag

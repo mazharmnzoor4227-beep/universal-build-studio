@@ -44,13 +44,14 @@ object BackgroundBuildManager {
             OneTimeWorkRequestBuilder<BuildWorker>()
                 .setInputData(input)
                 .setConstraints(constraints)
+                .setBackoffCriteria(BackoffPolicy.LINEAR, 15, java.util.concurrent.TimeUnit.SECONDS)
                 .build()
 
         WorkManager
             .getInstance(context)
             .enqueueUniqueWork(
                 WORK_NAME,
-                ExistingWorkPolicy.REPLACE,
+                ExistingWorkPolicy.KEEP,
                 request
             )
 
