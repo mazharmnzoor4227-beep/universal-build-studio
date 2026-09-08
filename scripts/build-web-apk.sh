@@ -17,28 +17,20 @@ mkdir -p "$OUTPUT_DIR"
 WEB_DIR="$SOURCE_DIR"
 
 if [ -f "$SOURCE_DIR/package.json" ]; then
-
     cd "$SOURCE_DIR"
 
     npm install --no-audit --no-fund
-
     npm run build --if-present
 
     if [ -d "$SOURCE_DIR/dist" ]; then
-
         WEB_DIR="$SOURCE_DIR/dist"
-
     elif [ -d "$SOURCE_DIR/build" ]; then
-
         WEB_DIR="$SOURCE_DIR/build"
-
     fi
 fi
 
 if [ ! -f "$WEB_DIR/index.html" ]; then
-
     echo "index.html not found"
-
     exit 1
 fi
 
@@ -55,11 +47,8 @@ if [ -n "$ICON_FILE" ] && [ -f "$ICON_FILE" ]; then
     HAS_ICON="true"
 
     echo "Custom app icon added"
-
 else
-
     echo "No custom icon found"
-
 fi
 
 cat > "$WRAPPER/settings.gradle" <<'EOF'
@@ -72,7 +61,6 @@ pluginManagement {
 }
 
 dependencyResolutionManagement {
-
     repositoriesMode.set(
         RepositoriesMode.FAIL_ON_PROJECT_REPOS
     )
@@ -84,7 +72,6 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "GeneratedWebApp"
-
 include(":app")
 EOF
 
@@ -100,21 +87,14 @@ plugins {
 }
 
 android {
-
     namespace 'com.generated.webapp'
-
     compileSdk 35
 
     defaultConfig {
-
         applicationId 'com.generated.webapp'
-
         minSdk 24
-
         targetSdk 35
-
         versionCode 1
-
         versionName '1.0'
     }
 }
@@ -125,8 +105,27 @@ if [ "$HAS_ICON" = "true" ]; then
 cat > "$WRAPPER/app/src/main/AndroidManifest.xml" <<'EOF'
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
     <uses-permission
-        android:name="android.permission.INTERNET" />
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <application
         android:label="Generated App"
@@ -161,8 +160,27 @@ else
 cat > "$WRAPPER/app/src/main/AndroidManifest.xml" <<'EOF'
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+
     <uses-permission
-        android:name="android.permission.INTERNET" />
+        android:name="android.permission.READ_EXTERNAL_STORAGE"
+        android:maxSdkVersion="32" />
 
     <application
         android:label="Generated App"
@@ -196,7 +214,10 @@ cat > "$WRAPPER/app/src/main/java/com/generated/webapp/MainActivity.java" <<'EOF
 package com.generated.webapp;
 
 import android.app.Activity;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -206,52 +227,135 @@ public class MainActivity extends Activity {
 
     private WebView webView;
 
+    private ValueCallback<Uri[]>
+        filePathCallback;
+
+    private static final int
+        FILE_CHOOSER_REQUEST = 1001;
+
     @Override
     protected void onCreate(
         Bundle savedInstanceState
     ) {
+        super.onCreate(savedInstanceState);
 
-        super.onCreate(
-            savedInstanceState
-        );
+        webView = new WebView(this);
 
-        webView =
-            new WebView(this);
-
-        setContentView(
-            webView
-        );
+        setContentView(webView);
 
         WebSettings settings =
             webView.getSettings();
 
-        settings.setJavaScriptEnabled(
-            true
-        );
+        settings.setJavaScriptEnabled(true);
 
-        settings.setDomStorageEnabled(
-            true
-        );
+        settings.setDomStorageEnabled(true);
 
-        settings.setAllowFileAccess(
-            true
-        );
+        settings.setAllowFileAccess(true);
 
-        settings.setAllowContentAccess(
-            true
-        );
+        settings.setAllowContentAccess(true);
 
-        webView.setWebChromeClient(
-            new WebChromeClient()
+        settings.setMediaPlaybackRequiresUserGesture(
+            false
         );
 
         webView.setWebViewClient(
             new WebViewClient()
         );
 
+        webView.setWebChromeClient(
+            new WebChromeClient() {
+
+                @Override
+                public boolean onShowFileChooser(
+                    WebView webView,
+                    ValueCallback<Uri[]>
+                        filePathCallbackParam,
+                    FileChooserParams
+                        fileChooserParams
+                ) {
+
+                    if (
+                        filePathCallback != null
+                    ) {
+                        filePathCallback
+                            .onReceiveValue(null);
+                    }
+
+                    filePathCallback =
+                        filePathCallbackParam;
+
+                    try {
+
+                        Intent intent =
+                            fileChooserParams
+                                .createIntent();
+
+                        intent.addCategory(
+                            Intent.CATEGORY_OPENABLE
+                        );
+
+                        startActivityForResult(
+                            intent,
+                            FILE_CHOOSER_REQUEST
+                        );
+
+                    } catch (Exception e) {
+
+                        filePathCallback
+                            .onReceiveValue(null);
+
+                        filePathCallback = null;
+
+                        return false;
+                    }
+
+                    return true;
+                }
+            }
+        );
+
         webView.loadUrl(
             "file:///android_asset/www/index.html"
         );
+    }
+
+    @Override
+    protected void onActivityResult(
+        int requestCode,
+        int resultCode,
+        Intent data
+    ) {
+
+        super.onActivityResult(
+            requestCode,
+            resultCode,
+            data
+        );
+
+        if (
+            requestCode ==
+            FILE_CHOOSER_REQUEST
+        ) {
+
+            if (
+                filePathCallback == null
+            ) {
+                return;
+            }
+
+            Uri[] results =
+                WebChromeClient
+                    .FileChooserParams
+                    .parseResult(
+                        resultCode,
+                        data
+                    );
+
+            filePathCallback
+                .onReceiveValue(results);
+
+            filePathCallback = null;
+        }
     }
 
     @Override
