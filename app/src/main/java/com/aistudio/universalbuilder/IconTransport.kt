@@ -29,8 +29,7 @@ object IconTransport {
         "app-icon.png"
 
     private val client =
-        OkHttpClient.Builder()
-            .build()
+        OkHttpClient()
 
     data class IconUploadResult(
         val success: Boolean,
@@ -48,14 +47,14 @@ object IconTransport {
 
             try {
 
-                val pngBytes =
-                    readIconAsPng(
+                val bytes =
+                    readIcon(
                         context,
                         iconUri
                     )
                         ?: return@withContext IconUploadResult(
                             false,
-                            "Could not read selected icon"
+                            "Could not read icon"
                         )
 
                 val releaseId =
@@ -66,7 +65,7 @@ object IconTransport {
                     )
                         ?: return@withContext IconUploadResult(
                             false,
-                            "Builder input release not found"
+                            "Release not found"
                         )
 
                 deleteOldIcon(
@@ -77,7 +76,7 @@ object IconTransport {
                 )
 
                 val body =
-                    pngBytes.toRequestBody(
+                    bytes.toRequestBody(
                         "image/png".toMediaType()
                     )
 
@@ -90,33 +89,21 @@ object IconTransport {
                                 "?name=$ICON_ASSET_NAME"
                         )
                         .post(body)
-                        .header(
-                            "Authorization",
-                            "Bearer $token"
-                        )
-                        .header(
-                            "Accept",
-                            "application/vnd.github+json"
-                        )
-                        .header(
-                            "X-GitHub-Api-Version",
-                            "2022-11-28"
+                        .headers(
+                            headers(token)
                         )
                         .build()
 
                 client.newCall(request)
                     .execute()
-                    .use { response ->
+                    .use {
 
-                        if (response.isSuccessful) {
-
+                        if (it.isSuccessful) {
                             IconUploadResult(
                                 true,
                                 "Icon uploaded"
                             )
-
                         } else {
-
                             IconUploadResult(
                                 false,
                                 "Icon upload failed"
@@ -128,13 +115,53 @@ object IconTransport {
 
                 IconUploadResult(
                     false,
-                    e.message
-                        ?: "Icon upload failed"
+                    e.message ?: "Icon upload failed"
                 )
             }
         }
 
-    private fun readIconAsPng(
+    suspend fun clearIcon(
+        username: String,
+        repository: String,
+        token: String
+    ): IconUploadResult =
+        withContext(Dispatchers.IO) {
+
+            try {
+
+                val releaseId =
+                    getReleaseId(
+                        username,
+                        repository,
+                        token
+                    )
+                        ?: return@withContext IconUploadResult(
+                            false,
+                            "Release not found"
+                        )
+
+                deleteOldIcon(
+                    username,
+                    repository,
+                    token,
+                    releaseId
+                )
+
+                IconUploadResult(
+                    true,
+                    "Old icon cleared"
+                )
+
+            } catch (e: Exception) {
+
+                IconUploadResult(
+                    false,
+                    e.message ?: "Icon clear failed"
+                )
+            }
+        }
+
+    private fun readIcon(
         context: Context,
         uri: Uri
     ): ByteArray? {
@@ -142,8 +169,8 @@ object IconTransport {
         val bitmap =
             context.contentResolver
                 .openInputStream(uri)
-                ?.use { input ->
-                    BitmapFactory.decodeStream(input)
+                ?.use {
+                    BitmapFactory.decodeStream(it)
                 }
                 ?: return null
 
@@ -173,31 +200,21 @@ object IconTransport {
                     "$API/repos/$username/$repository/" +
                         "releases/tags/$RELEASE_TAG"
                 )
-                .header(
-                    "Authorization",
-                    "Bearer $token"
-                )
-                .header(
-                    "Accept",
-                    "application/vnd.github+json"
-                )
-                .header(
-                    "X-GitHub-Api-Version",
-                    "2022-11-28"
+                .headers(
+                    headers(token)
                 )
                 .build()
 
         client.newCall(request)
             .execute()
-            .use { response ->
+            .use {
 
-                if (!response.isSuccessful) {
+                if (!it.isSuccessful) {
                     return null
                 }
 
                 val text =
-                    response.body
-                        ?.string()
+                    it.body?.string()
                         ?: return null
 
                 return JSONObject(text)
@@ -212,98 +229,76 @@ object IconTransport {
         releaseId: Long
     ) {
 
-        val listRequest =
+        val request =
             Request.Builder()
                 .url(
                     "$API/repos/$username/$repository/" +
                         "releases/$releaseId/assets"
                 )
-                .header(
-                    "Authorization",
-                    "Bearer $token"
-                )
-                .header(
-                    "Accept",
-                    "application/vnd.github+json"
-                )
-                .header(
-                    "X-GitHub-Api-Version",
-                    "2022-11-28"
+                .headers(
+                    headers(token)
                 )
                 .build()
 
-        client.newCall(listRequest)
+        client.newCall(request)
             .execute()
-            .use { response ->
+            .use {
 
-                if (!response.isSuccessful) {
+                if (!it.isSuccessful) {
                     return
                 }
 
-                val text =
-                    response.body
-                        ?.string()
-                        ?: return
+                val data =
+                    JSONArray(
+                        it.body?.string() ?: "[]"
+                    )
 
-                val assets =
-                    JSONArray(text)
-
-                for (
-                    i in 0 until assets.length()
-                ) {
+                for (i in 0 until data.length()) {
 
                     val asset =
-                        assets.getJSONObject(i)
+                        data.getJSONObject(i)
 
                     if (
                         asset.getString("name") ==
                         ICON_ASSET_NAME
                     ) {
 
-                        val id =
-                            asset.getLong("id")
+                        val deleteRequest =
+                            Request.Builder()
+                                .url(
+                                    "$API/repos/$username/$repository/" +
+                                        "releases/assets/" +
+                                        asset.getLong("id")
+                                )
+                                .delete()
+                                .headers(
+                                    headers(token)
+                                )
+                                .build()
 
-                        deleteAsset(
-                            username,
-                            repository,
-                            token,
-                            id
-                        )
+                        client.newCall(deleteRequest)
+                            .execute()
+                            .close()
                     }
                 }
             }
     }
 
-    private fun deleteAsset(
-        username: String,
-        repository: String,
-        token: String,
-        assetId: Long
-    ) {
-
-        val request =
-            Request.Builder()
-                .url(
-                    "$API/repos/$username/$repository/" +
-                        "releases/assets/$assetId"
-                )
-                .delete()
-                .header(
-                    "Authorization",
-                    "Bearer $token"
-                )
-                .header(
-                    "Accept",
-                    "application/vnd.github+json"
-                )
-                .header(
-                    "X-GitHub-Api-Version",
-                    "2022-11-28"
-                )
-                .build()
-
-        client.newCall(request)
-            .execute()
-            .close()
-    }
+    private fun headers(
+        token: String
+    ) =
+        okhttp3.Headers.Builder()
+            .add(
+                "Authorization",
+                "Bearer $token"
+            )
+            .add(
+                "Accept",
+                "application/vnd.github+json"
+            )
+            .add(
+                "X-GitHub-Api-Version",
+                "2022-11-28"
+            )
+            .build()
 }
