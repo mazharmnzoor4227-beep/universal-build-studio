@@ -6,8 +6,6 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.MediaMetadata;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
@@ -17,45 +15,44 @@ import android.os.IBinder;
 public class MediaPlaybackService extends Service {
 
     public static final String ACTION_PLAY =
-            "com.generated.webapp.PLAY";
+        "com.generated.webapp.PLAY";
 
     public static final String ACTION_PAUSE =
-            "com.generated.webapp.PAUSE";
+        "com.generated.webapp.PAUSE";
 
     public static final String ACTION_NEXT =
-            "com.generated.webapp.NEXT";
+        "com.generated.webapp.NEXT";
 
     public static final String ACTION_PREVIOUS =
-            "com.generated.webapp.PREVIOUS";
+        "com.generated.webapp.PREVIOUS";
 
     public static final String ACTION_UPDATE =
-            "com.generated.webapp.UPDATE_MEDIA";
+        "com.generated.webapp.UPDATE_MEDIA";
 
     public static final String EXTRA_TITLE =
-            "title";
+        "title";
 
     public static final String EXTRA_ARTIST =
-            "artist";
+        "artist";
 
     public static final String EXTRA_PLAYING =
-            "playing";
+        "playing";
 
     private static final String CHANNEL_ID =
-            "media_playback";
+        "media_playback";
 
     private static final int NOTIFICATION_ID =
-            5001;
+        5001;
 
     private MediaSession mediaSession;
 
     private String currentTitle =
-            "Now Playing";
+        "Now Playing";
 
     private String currentArtist =
-            "Generated App";
+        "Media Player";
 
-    private boolean isPlaying =
-            false;
+    private boolean isPlaying = false;
 
     @Override
     public void onCreate() {
@@ -65,50 +62,50 @@ public class MediaPlaybackService extends Service {
         createNotificationChannel();
 
         mediaSession =
-                new MediaSession(
-                        this,
-                        "GeneratedWebPlayer"
-                );
+            new MediaSession(
+                this,
+                "GeneratedWebPlayer"
+            );
 
         mediaSession.setCallback(
-                new MediaSession.Callback() {
+            new MediaSession.Callback() {
 
-                    @Override
-                    public void onPlay() {
+                @Override
+                public void onPlay() {
 
-                        sendControlBroadcast(
-                                ACTION_PLAY
-                        );
+                    sendControlBroadcast(
+                        ACTION_PLAY
+                    );
 
-                        setPlaying(true);
-                    }
-
-                    @Override
-                    public void onPause() {
-
-                        sendControlBroadcast(
-                                ACTION_PAUSE
-                        );
-
-                        setPlaying(false);
-                    }
-
-                    @Override
-                    public void onSkipToNext() {
-
-                        sendControlBroadcast(
-                                ACTION_NEXT
-                        );
-                    }
-
-                    @Override
-                    public void onSkipToPrevious() {
-
-                        sendControlBroadcast(
-                                ACTION_PREVIOUS
-                        );
-                    }
+                    setPlaying(true);
                 }
+
+                @Override
+                public void onPause() {
+
+                    sendControlBroadcast(
+                        ACTION_PAUSE
+                    );
+
+                    setPlaying(false);
+                }
+
+                @Override
+                public void onSkipToNext() {
+
+                    sendControlBroadcast(
+                        ACTION_NEXT
+                    );
+                }
+
+                @Override
+                public void onSkipToPrevious() {
+
+                    sendControlBroadcast(
+                        ACTION_PREVIOUS
+                    );
+                }
+            }
         );
 
         mediaSession.setActive(true);
@@ -118,103 +115,98 @@ public class MediaPlaybackService extends Service {
 
     @Override
     public int onStartCommand(
-            Intent intent,
-            int flags,
-            int startId
+        Intent intent,
+        int flags,
+        int startId
     ) {
 
         if (intent != null) {
 
             String action =
-                    intent.getAction();
+                intent.getAction();
 
             if (ACTION_PLAY.equals(action)) {
 
                 sendControlBroadcast(
-                        ACTION_PLAY
+                    ACTION_PLAY
                 );
 
                 setPlaying(true);
 
             } else if (
-                    ACTION_PAUSE.equals(action)
+                ACTION_PAUSE.equals(action)
             ) {
 
                 sendControlBroadcast(
-                        ACTION_PAUSE
+                    ACTION_PAUSE
                 );
 
                 setPlaying(false);
 
             } else if (
-                    ACTION_NEXT.equals(action)
+                ACTION_NEXT.equals(action)
             ) {
 
                 sendControlBroadcast(
-                        ACTION_NEXT
+                    ACTION_NEXT
                 );
 
             } else if (
-                    ACTION_PREVIOUS.equals(action)
+                ACTION_PREVIOUS.equals(action)
             ) {
 
                 sendControlBroadcast(
-                        ACTION_PREVIOUS
+                    ACTION_PREVIOUS
                 );
 
             } else if (
-                    ACTION_UPDATE.equals(action)
+                ACTION_UPDATE.equals(action)
             ) {
 
                 String title =
-                        intent.getStringExtra(
-                                EXTRA_TITLE
-                        );
+                    intent.getStringExtra(
+                        EXTRA_TITLE
+                    );
 
                 String artist =
-                        intent.getStringExtra(
-                                EXTRA_ARTIST
-                        );
+                    intent.getStringExtra(
+                        EXTRA_ARTIST
+                    );
 
                 if (
-                        title != null &&
-                        !title.trim().isEmpty()
+                    title != null &&
+                    !title.trim().isEmpty()
                 ) {
-
                     currentTitle = title;
                 }
 
                 if (
-                        artist != null &&
-                        !artist.trim().isEmpty()
+                    artist != null &&
+                    !artist.trim().isEmpty()
                 ) {
-
                     currentArtist = artist;
                 }
 
                 isPlaying =
-                        intent.getBooleanExtra(
-                                EXTRA_PLAYING,
-                                isPlaying
-                        );
-
-                updatePlaybackState();
+                    intent.getBooleanExtra(
+                        EXTRA_PLAYING,
+                        isPlaying
+                    );
             }
         }
 
-        Notification notification =
-                createNotification();
+        updatePlaybackState();
 
         startForeground(
-                NOTIFICATION_ID,
-                notification
+            NOTIFICATION_ID,
+            createNotification()
         );
 
         return START_STICKY;
     }
 
     private void setPlaying(
-            boolean playing
+        boolean playing
     ) {
 
         isPlaying = playing;
@@ -222,14 +214,14 @@ public class MediaPlaybackService extends Service {
         updatePlaybackState();
 
         NotificationManager manager =
-                (NotificationManager)
-                        getSystemService(
-                                NOTIFICATION_SERVICE
-                        );
+            (NotificationManager)
+                getSystemService(
+                    NOTIFICATION_SERVICE
+                );
 
         manager.notify(
-                NOTIFICATION_ID,
-                createNotification()
+            NOTIFICATION_ID,
+            createNotification()
         );
     }
 
@@ -240,208 +232,207 @@ public class MediaPlaybackService extends Service {
         }
 
         long actions =
-                PlaybackState.ACTION_PLAY
-                        | PlaybackState.ACTION_PAUSE
-                        | PlaybackState.ACTION_PLAY_PAUSE
-                        | PlaybackState.ACTION_SKIP_TO_NEXT
-                        | PlaybackState.ACTION_SKIP_TO_PREVIOUS;
+            PlaybackState.ACTION_PLAY
+                | PlaybackState.ACTION_PAUSE
+                | PlaybackState.ACTION_PLAY_PAUSE
+                | PlaybackState.ACTION_SKIP_TO_NEXT
+                | PlaybackState.ACTION_SKIP_TO_PREVIOUS;
 
         int state =
-                isPlaying
-                        ? PlaybackState.STATE_PLAYING
-                        : PlaybackState.STATE_PAUSED;
+            isPlaying
+                ? PlaybackState.STATE_PLAYING
+                : PlaybackState.STATE_PAUSED;
 
         PlaybackState playbackState =
-                new PlaybackState.Builder()
-                        .setActions(actions)
-                        .setState(
-                                state,
-                                PlaybackState.PLAYBACK_POSITION_UNKNOWN,
-                                isPlaying ? 1f : 0f
-                        )
-                        .build();
+            new PlaybackState.Builder()
+                .setActions(actions)
+                .setState(
+                    state,
+                    PlaybackState.PLAYBACK_POSITION_UNKNOWN,
+                    isPlaying ? 1f : 0f
+                )
+                .build();
 
         mediaSession.setPlaybackState(
-                playbackState
+            playbackState
         );
 
         MediaMetadata metadata =
-                new MediaMetadata.Builder()
-                        .putString(
-                                MediaMetadata.METADATA_KEY_TITLE,
-                                currentTitle
-                        )
-                        .putString(
-                                MediaMetadata.METADATA_KEY_ARTIST,
-                                currentArtist
-                        )
-                        .build();
+            new MediaMetadata.Builder()
+                .putString(
+                    MediaMetadata.METADATA_KEY_TITLE,
+                    currentTitle
+                )
+                .putString(
+                    MediaMetadata.METADATA_KEY_ARTIST,
+                    currentArtist
+                )
+                .build();
 
         mediaSession.setMetadata(
-                metadata
+            metadata
         );
     }
 
     private Notification createNotification() {
 
         Intent openIntent =
-                new Intent(
-                        this,
-                        MainActivity.class
-                );
+            new Intent(
+                this,
+                MainActivity.class
+            );
 
         openIntent.setFlags(
-                Intent.FLAG_ACTIVITY_SINGLE_TOP
-                        | Intent.FLAG_ACTIVITY_CLEAR_TOP
+            Intent.FLAG_ACTIVITY_SINGLE_TOP
+                | Intent.FLAG_ACTIVITY_CLEAR_TOP
         );
 
         PendingIntent contentIntent =
-                PendingIntent.getActivity(
-                        this,
-                        10,
-                        openIntent,
-                        PendingIntent.FLAG_UPDATE_CURRENT
-                                | PendingIntent.FLAG_IMMUTABLE
-                );
+            PendingIntent.getActivity(
+                this,
+                10,
+                openIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT
+                    | PendingIntent.FLAG_IMMUTABLE
+            );
 
         PendingIntent previousIntent =
-                serviceAction(
-                        ACTION_PREVIOUS,
-                        20
-                );
+            serviceAction(
+                ACTION_PREVIOUS,
+                20
+            );
 
         PendingIntent playPauseIntent =
-                serviceAction(
-                        isPlaying
-                                ? ACTION_PAUSE
-                                : ACTION_PLAY,
-                        21
-                );
+            serviceAction(
+                isPlaying
+                    ? ACTION_PAUSE
+                    : ACTION_PLAY,
+                21
+            );
 
         PendingIntent nextIntent =
-                serviceAction(
-                        ACTION_NEXT,
-                        22
-                );
+            serviceAction(
+                ACTION_NEXT,
+                22
+            );
 
-        Notification.Action previousAction =
-                new Notification.Action.Builder(
-                        android.R.drawable.ic_media_previous,
-                        "Previous",
-                        previousIntent
-                ).build();
+        Notification.Action previous =
+            new Notification.Action.Builder(
+                android.R.drawable.ic_media_previous,
+                "Previous",
+                previousIntent
+            ).build();
 
-        Notification.Action playPauseAction =
-                new Notification.Action.Builder(
-                        isPlaying
-                                ? android.R.drawable.ic_media_pause
-                                : android.R.drawable.ic_media_play,
-                        isPlaying
-                                ? "Pause"
-                                : "Play",
-                        playPauseIntent
-                ).build();
+        Notification.Action playPause =
+            new Notification.Action.Builder(
+                isPlaying
+                    ? android.R.drawable.ic_media_pause
+                    : android.R.drawable.ic_media_play,
+                isPlaying
+                    ? "Pause"
+                    : "Play",
+                playPauseIntent
+            ).build();
 
-        Notification.Action nextAction =
-                new Notification.Action.Builder(
-                        android.R.drawable.ic_media_next,
-                        "Next",
-                        nextIntent
-                ).build();
+        Notification.Action next =
+            new Notification.Action.Builder(
+                android.R.drawable.ic_media_next,
+                "Next",
+                nextIntent
+            ).build();
 
         Notification.Builder builder;
 
         if (Build.VERSION.SDK_INT >= 26) {
 
             builder =
-                    new Notification.Builder(
-                            this,
-                            CHANNEL_ID
-                    );
+                new Notification.Builder(
+                    this,
+                    CHANNEL_ID
+                );
 
         } else {
 
             builder =
-                    new Notification.Builder(
-                            this
-                    );
+                new Notification.Builder(
+                    this
+                );
         }
 
         builder
-                .setContentTitle(
-                        currentTitle
-                )
-                .setContentText(
-                        currentArtist
-                )
-                .setSmallIcon(
-                        android.R.drawable.ic_media_play
-                )
-                .setContentIntent(
-                        contentIntent
-                )
-                .setOngoing(
-                        isPlaying
-                )
-                .setVisibility(
-                        Notification.VISIBILITY_PUBLIC
-                )
-                .addAction(
-                        previousAction
-                )
-                .addAction(
-                        playPauseAction
-                )
-                .addAction(
-                        nextAction
-                )
-                .setStyle(
-                        new Notification.MediaStyle()
-                                .setMediaSession(
-                                        mediaSession
-                                                .getSessionToken()
-                                )
-                                .setShowActionsInCompactView(
-                                        0,
-                                        1,
-                                        2
-                                )
-                );
+            .setContentTitle(
+                currentTitle
+            )
+            .setContentText(
+                currentArtist
+            )
+            .setSmallIcon(
+                android.R.drawable.ic_media_play
+            )
+            .setContentIntent(
+                contentIntent
+            )
+            .setVisibility(
+                Notification.VISIBILITY_PUBLIC
+            )
+            .setOngoing(
+                isPlaying
+            )
+            .addAction(
+                previous
+            )
+            .addAction(
+                playPause
+            )
+            .addAction(
+                next
+            )
+            .setStyle(
+                new Notification.MediaStyle()
+                    .setMediaSession(
+                        mediaSession.getSessionToken()
+                    )
+                    .setShowActionsInCompactView(
+                        0,
+                        1,
+                        2
+                    )
+            );
 
         return builder.build();
     }
 
     private PendingIntent serviceAction(
-            String action,
-            int requestCode
+        String action,
+        int requestCode
     ) {
 
         Intent intent =
-                new Intent(
-                        this,
-                        MediaPlaybackService.class
-                );
+            new Intent(
+                this,
+                MediaPlaybackService.class
+            );
 
         intent.setAction(action);
 
         return PendingIntent.getService(
-                this,
-                requestCode,
-                intent,
-                PendingIntent.FLAG_UPDATE_CURRENT
-                        | PendingIntent.FLAG_IMMUTABLE
+            this,
+            requestCode,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT
+                | PendingIntent.FLAG_IMMUTABLE
         );
     }
 
     private void sendControlBroadcast(
-            String action
+        String action
     ) {
 
         Intent intent =
-                new Intent(action);
+            new Intent(action);
 
         intent.setPackage(
-                getPackageName()
+            getPackageName()
         );
 
         sendBroadcast(intent);
@@ -452,28 +443,27 @@ public class MediaPlaybackService extends Service {
         if (Build.VERSION.SDK_INT >= 26) {
 
             NotificationChannel channel =
-                    new NotificationChannel(
-                            CHANNEL_ID,
-                            "Media Playback",
-                            NotificationManager
-                                    .IMPORTANCE_LOW
-                    );
+                new NotificationChannel(
+                    CHANNEL_ID,
+                    "Media Playback",
+                    NotificationManager.IMPORTANCE_LOW
+                );
 
             channel.setDescription(
-                    "Background media playback controls"
+                "Background media playback controls"
             );
 
             channel.setLockscreenVisibility(
-                    Notification.VISIBILITY_PUBLIC
+                Notification.VISIBILITY_PUBLIC
             );
 
             NotificationManager manager =
-                    getSystemService(
-                            NotificationManager.class
-                    );
+                getSystemService(
+                    NotificationManager.class
+                );
 
             manager.createNotificationChannel(
-                    channel
+                channel
             );
         }
     }
@@ -493,9 +483,9 @@ public class MediaPlaybackService extends Service {
 
     @Override
     public IBinder onBind(
-            Intent intent
+        Intent intent
     ) {
 
         return null;
     }
-  }
+}
