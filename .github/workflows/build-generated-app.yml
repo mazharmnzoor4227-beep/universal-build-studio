@@ -46,6 +46,15 @@ jobs:
             --pattern "project-input.zip" \
             --dir generated-project
 
+      - name: Download App Icon
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download universal-builder-input \
+            --pattern "app-icon.png" \
+            --dir generated-project \
+            || true
+
       - name: Extract Project
         run: |
           cd generated-project
@@ -115,9 +124,11 @@ jobs:
           env.PROJECT_TYPE == 'NODE_WEB'
         run: |
           chmod +x scripts/build-web-apk.sh
+
           scripts/build-web-apk.sh \
             "$PROJECT_ROOT" \
-            "$GITHUB_WORKSPACE/output"
+            "$GITHUB_WORKSPACE/output" \
+            "$GITHUB_WORKSPACE/generated-project/app-icon.png"
 
       - name: Find Android APK
         if: |
