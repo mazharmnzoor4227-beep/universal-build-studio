@@ -9,7 +9,6 @@ META_FILE="${4:-}"
 WRAPPER="$GITHUB_WORKSPACE/web-wrapper"
 
 MAIN_ACTIVITY_SOURCE="$GITHUB_WORKSPACE/scripts/web-wrapper/MainActivity.java"
-
 MEDIA_SERVICE_SOURCE="$GITHUB_WORKSPACE/scripts/web-wrapper/MediaPlaybackService.java"
 
 APP_NAME="Generated App"
@@ -45,6 +44,55 @@ print(data.get("packageName", "com.generated.webapp"))
 ' "$META_FILE"
     )"
 fi
+
+# --------------------------------------------------
+# CLEAN APP NAME
+# --------------------------------------------------
+
+APP_NAME="$(
+python3 - "$APP_NAME" <<'PY'
+import sys
+
+value = sys.argv[1]
+
+lines = [
+    line.strip()
+    for line in value.splitlines()
+    if line.strip()
+]
+
+print(
+    lines[0]
+    if lines
+    else "Generated App"
+)
+PY
+)"
+
+# --------------------------------------------------
+# CLEAN PACKAGE ID
+# --------------------------------------------------
+
+PACKAGE_NAME="$(
+python3 - "$PACKAGE_NAME" <<'PY'
+import re
+import sys
+
+value = sys.argv[1]
+
+match = re.search(
+    r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+',
+    value
+)
+
+if match:
+    package = match.group(0)
+else:
+    package = "com.generated.webapp"
+
+print(package.lower())
+PY
+)"
 
 echo "APP NAME: $APP_NAME"
 echo "PACKAGE: $PACKAGE_NAME"
@@ -104,7 +152,6 @@ fi
 if [ ! -f "$WEB_DIR/index.html" ]; then
 
     echo "index.html not found"
-
     exit 1
 fi
 
@@ -123,14 +170,12 @@ cp -R \
 if [ ! -f "$MAIN_ACTIVITY_SOURCE" ]; then
 
     echo "MainActivity.java missing"
-
     exit 1
 fi
 
 if [ ! -f "$MEDIA_SERVICE_SOURCE" ]; then
 
     echo "MediaPlaybackService.java missing"
-
     exit 1
 fi
 
@@ -164,7 +209,6 @@ if [ -n "$ICON_FILE" ] && [ -f "$ICON_FILE" ]; then
 else
 
     echo "No custom icon selected"
-
 fi
 
 # --------------------------------------------------
@@ -270,7 +314,6 @@ import sys
 from xml.sax.saxutils import escape
 
 name = sys.argv[1]
-
 path = sys.argv[2]
 
 with open(
@@ -308,7 +351,6 @@ if [ "$HAS_ICON" = "true" ]; then
 else
 
     ICON_ATTRS=""
-
 fi
 
 # --------------------------------------------------
@@ -422,7 +464,6 @@ APK="$WRAPPER/app/build/outputs/apk/debug/app-debug.apk"
 if [ ! -f "$APK" ]; then
 
     echo "APK was not created"
-
     exit 1
 fi
 
