@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.PackageManager;
+import android.database.Cursor;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -20,6 +21,11 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+
+import org.json.JSONArray;
+import org.json.JSONObject;
+
+import java.util.ArrayList;
 
 public class MainActivity extends Activity {
 
@@ -34,7 +40,7 @@ public class MainActivity extends Activity {
         FILE_REQUEST = 1001;
 
     private static final int
-        PERMISSION_REQUEST = 2001;
+        MEDIA_PERMISSION_REQUEST = 2001;
 
     private final BroadcastReceiver
         mediaReceiver =
@@ -55,8 +61,10 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "var m=document.querySelector('audio,video');" +
-                        "if(m){m.play();}"
+                        "var m=document.querySelector(" +
+                        "'audio:not([paused]),video:not([paused])');" +
+                        "if(!m)m=document.querySelector('audio,video');" +
+                        "if(m)m.play();"
                     );
 
                 } else if (
@@ -66,7 +74,7 @@ public class MainActivity extends Activity {
 
                     runJs(
                         "var m=document.querySelector('audio,video');" +
-                        "if(m){m.pause();}"
+                        "if(m)m.pause();"
                     );
 
                 } else if (
@@ -75,11 +83,8 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "window.dispatchEvent(new CustomEvent(" +
-                        "'native-media-next'));" +
-                        "var b=document.querySelector(" +
-                        "'[data-media-next],.next,.next-button');" +
-                        "if(b){b.click();}"
+                        "window.dispatchEvent(" +
+                        "new CustomEvent('native-media-next'));"
                     );
 
                 } else if (
@@ -88,12 +93,8 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "window.dispatchEvent(new CustomEvent(" +
-                        "'native-media-previous'));" +
-                        "var b=document.querySelector(" +
-                        "'[data-media-previous],.previous," +
-                        ".prev,.prev-button');" +
-                        "if(b){b.click();}"
+                        "window.dispatchEvent(" +
+                        "new CustomEvent('native-media-previous'));"
                     );
                 }
             }
@@ -108,10 +109,6 @@ public class MainActivity extends Activity {
             savedInstanceState
         );
 
-        requestPermissionsNeeded();
-
-        registerMediaReceiver();
-
         webView =
             new WebView(this);
 
@@ -119,14 +116,29 @@ public class MainActivity extends Activity {
             webView
         );
 
+        configureWebView();
+
+        registerMediaReceiver();
+
+        requestMediaPermissions();
+
+        webView.loadUrl(
+            "file:///android_asset/www/index.html"
+        );
+    }
+
+    private void configureWebView() {
+
         WebSettings settings =
             webView.getSettings();
 
         settings.setJavaScriptEnabled(true);
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
+
         settings.setAllowFileAccess(true);
         settings.setAllowContentAccess(true);
+
         settings.setLoadsImagesAutomatically(true);
 
         settings.setMediaPlaybackRequiresUserGesture(
@@ -136,6 +148,11 @@ public class MainActivity extends Activity {
         webView.addJavascriptInterface(
             new NativeMediaBridge(),
             "NativeMedia"
+        );
+
+        webView.addJavascriptInterface(
+            new NativeLibraryBridge(),
+            "NativeLibrary"
         );
 
         webView.setWebViewClient(
@@ -153,6 +170,11 @@ public class MainActivity extends Activity {
                     );
 
                     installMediaBridge();
+
+                    runJs(
+                        "window.dispatchEvent(" +
+                        "new CustomEvent('native-library-ready'));"
+                    );
                 }
             }
         );
@@ -168,6 +190,7 @@ public class MainActivity extends Activity {
                 ) {
 
                     if (fileCallback != null) {
+
                         fileCallback.onReceiveValue(
                             null
                         );
@@ -196,10 +219,500 @@ public class MainActivity extends Activity {
                 }
             }
         );
+    }
 
-        webView.loadUrl(
-            "file:///android_asset/www/index.html"
+    private void requestMediaPermissions() {
+
+        if (Build.VERSION.SDK_INT < 23) {
+            return;
+        }
+
+        ArrayList<String> list =
+            new ArrayList<>();
+
+        if (Build.VERSION.SDK_INT >= 33) {
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.READ_MEDIA_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                list.add(
+                    Manifest.permission.READ_MEDIA_AUDIO
+                );
+            }
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.READ_MEDIA_IMAGES
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                list.add(
+                    Manifest.permission.READ_MEDIA_IMAGES
+                );
+            }
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.READ_MEDIA_VIDEO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                list.add(
+                    Manifest.permission.READ_MEDIA_VIDEO
+                );
+            }
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.POST_NOTIFICATIONS
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                list.add(
+                    Manifest.permission.POST_NOTIFICATIONS
+                );
+            }
+
+        } else {
+
+            if (
+                checkSelfPermission(
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                list.add(
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                );
+            }
+        }
+
+        if (
+            checkSelfPermission(
+                Manifest.permission.CAMERA
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            list.add(
+                Manifest.permission.CAMERA
+            );
+        }
+
+        if (
+            checkSelfPermission(
+                Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+
+            list.add(
+                Manifest.permission.RECORD_AUDIO
+            );
+        }
+
+        if (!list.isEmpty()) {
+
+            requestPermissions(
+                list.toArray(
+                    new String[0]
+                ),
+                MEDIA_PERMISSION_REQUEST
+            );
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(
+        int requestCode,
+        String[] permissions,
+        int[] grantResults
+    ) {
+
+        super.onRequestPermissionsResult(
+            requestCode,
+            permissions,
+            grantResults
         );
+
+        if (
+            requestCode ==
+            MEDIA_PERMISSION_REQUEST
+        ) {
+
+            runJs(
+                "window.dispatchEvent(" +
+                "new CustomEvent('native-library-ready'));"
+            );
+        }
+    }
+
+    public class NativeLibraryBridge {
+
+        @JavascriptInterface
+        public String getSongs() {
+
+            return queryAudio()
+                .toString();
+        }
+
+        @JavascriptInterface
+        public String getVideos() {
+
+            return queryVideos()
+                .toString();
+        }
+
+        @JavascriptInterface
+        public String getImages() {
+
+            return queryImages()
+                .toString();
+        }
+
+        @JavascriptInterface
+        public boolean hasMusicPermission() {
+
+            if (Build.VERSION.SDK_INT >= 33) {
+
+                return checkSelfPermission(
+                    Manifest.permission.READ_MEDIA_AUDIO
+                ) ==
+                PackageManager.PERMISSION_GRANTED;
+            }
+
+            return Build.VERSION.SDK_INT < 23 ||
+                checkSelfPermission(
+                    Manifest.permission.READ_EXTERNAL_STORAGE
+                ) ==
+                PackageManager.PERMISSION_GRANTED;
+        }
+    }
+
+    private JSONArray queryAudio() {
+
+        JSONArray result =
+            new JSONArray();
+
+        Uri uri =
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
+
+        String[] projection = {
+            MediaStore.Audio.Media._ID,
+            MediaStore.Audio.Media.TITLE,
+            MediaStore.Audio.Media.ARTIST,
+            MediaStore.Audio.Media.ALBUM,
+            MediaStore.Audio.Media.DURATION,
+            MediaStore.Audio.Media.DISPLAY_NAME
+        };
+
+        String selection =
+            MediaStore.Audio.Media.IS_MUSIC +
+            " != 0";
+
+        try (
+            Cursor cursor =
+                getContentResolver().query(
+                    uri,
+                    projection,
+                    selection,
+                    null,
+                    MediaStore.Audio.Media.DATE_ADDED +
+                    " DESC"
+                )
+        ) {
+
+            if (cursor == null) {
+                return result;
+            }
+
+            int idCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media._ID
+                );
+
+            int titleCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media.TITLE
+                );
+
+            int artistCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media.ARTIST
+                );
+
+            int albumCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media.ALBUM
+                );
+
+            int durationCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media.DURATION
+                );
+
+            int nameCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Audio.Media.DISPLAY_NAME
+                );
+
+            while (cursor.moveToNext()) {
+
+                long id =
+                    cursor.getLong(idCol);
+
+                Uri contentUri =
+                    Uri.withAppendedPath(
+                        uri,
+                        String.valueOf(id)
+                    );
+
+                JSONObject item =
+                    new JSONObject();
+
+                item.put(
+                    "id",
+                    id
+                );
+
+                item.put(
+                    "title",
+                    safe(
+                        cursor.getString(
+                            titleCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "artist",
+                    safe(
+                        cursor.getString(
+                            artistCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "album",
+                    safe(
+                        cursor.getString(
+                            albumCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "name",
+                    safe(
+                        cursor.getString(
+                            nameCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "duration",
+                    cursor.getLong(
+                        durationCol
+                    )
+                );
+
+                item.put(
+                    "uri",
+                    contentUri.toString()
+                );
+
+                result.put(item);
+            }
+
+        } catch (Exception ignored) {
+        }
+
+        return result;
+    }
+
+    private JSONArray queryVideos() {
+
+        JSONArray result =
+            new JSONArray();
+
+        Uri uri =
+            MediaStore.Video.Media.EXTERNAL_CONTENT_URI;
+
+        String[] projection = {
+            MediaStore.Video.Media._ID,
+            MediaStore.Video.Media.DISPLAY_NAME,
+            MediaStore.Video.Media.DURATION,
+            MediaStore.Video.Media.DATE_ADDED
+        };
+
+        try (
+            Cursor cursor =
+                getContentResolver().query(
+                    uri,
+                    projection,
+                    null,
+                    null,
+                    MediaStore.Video.Media.DATE_ADDED +
+                    " DESC"
+                )
+        ) {
+
+            if (cursor == null) {
+                return result;
+            }
+
+            int idCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Video.Media._ID
+                );
+
+            int nameCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Video.Media.DISPLAY_NAME
+                );
+
+            int durationCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Video.Media.DURATION
+                );
+
+            while (cursor.moveToNext()) {
+
+                long id =
+                    cursor.getLong(idCol);
+
+                JSONObject item =
+                    new JSONObject();
+
+                item.put(
+                    "id",
+                    id
+                );
+
+                item.put(
+                    "name",
+                    safe(
+                        cursor.getString(
+                            nameCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "duration",
+                    cursor.getLong(
+                        durationCol
+                    )
+                );
+
+                item.put(
+                    "uri",
+                    Uri.withAppendedPath(
+                        uri,
+                        String.valueOf(id)
+                    ).toString()
+                );
+
+                result.put(item);
+            }
+
+        } catch (Exception ignored) {
+        }
+
+        return result;
+    }
+
+    private JSONArray queryImages() {
+
+        JSONArray result =
+            new JSONArray();
+
+        Uri uri =
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI;
+
+        String[] projection = {
+            MediaStore.Images.Media._ID,
+            MediaStore.Images.Media.DISPLAY_NAME,
+            MediaStore.Images.Media.DATE_ADDED
+        };
+
+        try (
+            Cursor cursor =
+                getContentResolver().query(
+                    uri,
+                    projection,
+                    null,
+                    null,
+                    MediaStore.Images.Media.DATE_ADDED +
+                    " DESC"
+                )
+        ) {
+
+            if (cursor == null) {
+                return result;
+            }
+
+            int idCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Images.Media._ID
+                );
+
+            int nameCol =
+                cursor.getColumnIndexOrThrow(
+                    MediaStore.Images.Media.DISPLAY_NAME
+                );
+
+            while (cursor.moveToNext()) {
+
+                long id =
+                    cursor.getLong(idCol);
+
+                JSONObject item =
+                    new JSONObject();
+
+                item.put(
+                    "id",
+                    id
+                );
+
+                item.put(
+                    "name",
+                    safe(
+                        cursor.getString(
+                            nameCol
+                        )
+                    )
+                );
+
+                item.put(
+                    "uri",
+                    Uri.withAppendedPath(
+                        uri,
+                        String.valueOf(id)
+                    ).toString()
+                );
+
+                result.put(item);
+            }
+
+        } catch (Exception ignored) {
+        }
+
+        return result;
+    }
+
+    private String safe(
+        String value
+    ) {
+
+        if (value == null) {
+            return "";
+        }
+
+        return value;
     }
 
     private void openFileChooser(
@@ -250,8 +763,7 @@ public class MainActivity extends Activity {
             );
 
             cameraIntent.addFlags(
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-                    |
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
                 Intent.FLAG_GRANT_READ_URI_PERMISSION
             );
         }
@@ -259,7 +771,7 @@ public class MainActivity extends Activity {
         Intent chooser =
             Intent.createChooser(
                 fileIntent,
-                "Select file or camera"
+                "Choose media"
             );
 
         if (
@@ -303,8 +815,8 @@ public class MainActivity extends Activity {
             values.put(
                 MediaStore.Images.Media.DISPLAY_NAME,
                 "camera_" +
-                    System.currentTimeMillis() +
-                    ".jpg"
+                System.currentTimeMillis() +
+                ".jpg"
             );
 
             values.put(
@@ -317,7 +829,7 @@ public class MainActivity extends Activity {
                 values.put(
                     MediaStore.Images.Media.RELATIVE_PATH,
                     "Pictures/GeneratedApps"
-                );
+                      );
             }
 
             return getContentResolver()
@@ -374,63 +886,45 @@ public class MainActivity extends Activity {
 
         runJs(
             "(function(){" +
-            "if(window.__nativeMediaReady)return;" +
-            "window.__nativeMediaReady=true;" +
+            "if(window.__mediaBridge)return;" +
+            "window.__mediaBridge=true;" +
 
             "function update(m,p){" +
 
-            "var title=" +
+            "var t=" +
             "m.dataset.title||" +
-            "m.getAttribute('title')||" +
-            "document.title||'Now Playing';" +
+            "document.title||" +
+            "'Now Playing';" +
 
-            "var artist=" +
+            "var a=" +
             "m.dataset.artist||" +
             "'Media Player';" +
 
             "if(window.NativeMedia){" +
-            "NativeMedia.updateMedia(" +
-            "title,artist,p);" +
+            "NativeMedia.updateMedia(t,a,p);" +
             "}" +
 
             "}" +
 
             "document.addEventListener(" +
             "'play',function(e){" +
+
             "if(e.target.matches('audio,video')){" +
             "update(e.target,true);" +
-            "}},true);" +
+            "}" +
+
+            "},true);" +
 
             "document.addEventListener(" +
             "'pause',function(e){" +
-            "if(e.target.matches('audio,video')){" +
-            "update(e.target,false);" +
-            "}},true);" +
 
-            "document.addEventListener(" +
-            "'ended',function(e){" +
             "if(e.target.matches('audio,video')){" +
             "update(e.target,false);" +
-            "}},true);" +
+            "}" +
+
+            "},true);" +
 
             "})();"
-        );
-    }
-
-    private void runJs(
-        String code
-    ) {
-
-        if (webView == null) {
-            return;
-        }
-
-        webView.post(
-            () ->
-                webView.evaluateJavascript(
-                    code,
-                    null
-                )
         );
     }
 
@@ -483,58 +977,21 @@ public class MainActivity extends Activity {
         }
     }
 
-    private void requestPermissionsNeeded() {
+    private void runJs(
+        String code
+    ) {
 
-        if (Build.VERSION.SDK_INT < 23) {
+        if (webView == null) {
             return;
         }
 
-        java.util.ArrayList<String> list =
-            new java.util.ArrayList<>();
-
-        if (
-            checkSelfPermission(
-                Manifest.permission.CAMERA
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            list.add(
-                Manifest.permission.CAMERA
-            );
-        }
-
-        if (
-            checkSelfPermission(
-                Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            list.add(
-                Manifest.permission.RECORD_AUDIO
-            );
-        }
-
-        if (
-            Build.VERSION.SDK_INT >= 33 &&
-            checkSelfPermission(
-                Manifest.permission.POST_NOTIFICATIONS
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-
-            list.add(
-                Manifest.permission.POST_NOTIFICATIONS
-            );
-        }
-
-        if (!list.isEmpty()) {
-
-            requestPermissions(
-                list.toArray(
-                    new String[0]
-                ),
-                PERMISSION_REQUEST
-            );
-        }
+        webView.post(
+            () ->
+                webView.evaluateJavascript(
+                    code,
+                    null
+                )
+        );
     }
 
     @Override
@@ -611,6 +1068,7 @@ public class MainActivity extends Activity {
         );
 
         fileCallback = null;
+
         cameraUri = null;
     }
 
@@ -640,6 +1098,11 @@ public class MainActivity extends Activity {
             );
 
         } catch (Exception ignored) {
+        }
+
+        if (webView != null) {
+
+            webView.destroy();
         }
 
         super.onDestroy();
