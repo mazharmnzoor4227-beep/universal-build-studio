@@ -20,7 +20,8 @@ object BackgroundBuildManager {
         appName: String,
         packageName: String,
         projectName: String,
-        projectUri: String
+        projectUri: String,
+        iconUri: String?
     ): UUID {
 
         val input =
@@ -28,7 +29,8 @@ object BackgroundBuildManager {
                 BuildWorker.KEY_APP_NAME to appName,
                 BuildWorker.KEY_PACKAGE_NAME to packageName,
                 BuildWorker.KEY_PROJECT_NAME to projectName,
-                BuildWorker.KEY_PROJECT_URI to projectUri
+                BuildWorker.KEY_PROJECT_URI to projectUri,
+                BuildWorker.KEY_ICON_URI to (iconUri ?: "")
             )
 
         val constraints =
