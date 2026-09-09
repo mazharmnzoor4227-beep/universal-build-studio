@@ -1,0 +1,46 @@
+name: Verify complete build pipeline
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/build-reliability]
+    paths:
+      - '.github/workflows/build-generated-app.yml'
+      - '.github/workflows/verify-pipeline.yml'
+      - 'scripts/**'
+permissions:
+  contents: write
+  actions: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Dispatch isolated sample build and verify its output
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BUILD_REF: ${{ github.ref_name }}
+          BUILD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          REQUEST_ID=$(cat /proc/sys/kernel/random/uuid)
+          TAG="builder-$REQUEST_ID"
+          trap 'gh release delete "$TAG" --yes --cleanup-tag >/dev/null 2>&1 || true' EXIT
+          mkdir source
+          echo '<!doctype html><html><body>Pipeline verified</body></html>' > source/index.html
+          (cd source && zip ../project-input.zip index.html)
+          echo '{"appName":"Pipeline Test", "packageName":"com.test.pipeline", "options":{}}' > build-meta.json
+          gh release create "$TAG" project-input.zip build-meta.json --target "$BUILD_SHA" --prerelease --title 'Temporary pipeline fixture' --notes 'Synthetic test data only; automatically removed.'
+          gh workflow run build-generated-app.yml --ref "$BUILD_REF" -f "request_id=$REQUEST_ID"
+          RUN_ID=''
+          for i in $(seq 1 30); do
+            RUN_ID=$(gh run list --workflow build-generated-app.yml --limit 50 --json databaseId,displayTitle --jq ".[] | select(.displayTitle == \"Build $REQUEST_ID\") | .databaseId" | head -n1)
+            [[ -n "$RUN_ID" ]] && break
+            sleep 5
+          done
+          test -n "$RUN_ID"
+          gh run watch "$RUN_ID" --exit-status --interval 10
+          gh run download "$RUN_ID" --name generated-apk --dir verified
+          test -s verified/generated-app.apk
+          unzip -t verified/generated-app.apk >/dev/null
+          echo "Verified actual workflow run: $RUN_ID" >> "$GITHUB_STEP_SUMMARY"
