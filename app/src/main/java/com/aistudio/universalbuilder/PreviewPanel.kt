@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -33,15 +34,15 @@ fun PreviewPanel(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color(0xFF11151D),
+                MaterialTheme.colorScheme.surface,
                 RoundedCornerShape(20.dp)
             )
             .padding(16.dp)
     ) {
 
         Text(
-            text = "APP PREVIEW",
-            color = Color(0xFFA58BFF),
+            text = "App preview",
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold
         )
 
@@ -70,7 +71,7 @@ fun PreviewPanel(
 
         Text(
             text = previewMessage,
-            color = Color(0xFF949EAE),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp
         )
 
@@ -167,7 +168,7 @@ fun PreviewPanel(
                     .fillMaxWidth()
                     .height(190.dp)
                     .background(
-                        Color(0xFF090C12),
+                        MaterialTheme.colorScheme.background,
                         RoundedCornerShape(20.dp)
                     ),
                 contentAlignment =
@@ -221,7 +222,7 @@ fun PreviewPanel(
 
                     Text(
                         text = projectType,
-                        color = Color(0xFF8D97A7),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
