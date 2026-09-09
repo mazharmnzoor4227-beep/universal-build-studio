@@ -156,6 +156,8 @@ object PreviewManager {
                     ZipInputStream(input)
                         .use { zip ->
 
+                            var entries = 0
+                            var expanded = 0L
                             var entry =
                                 zip.nextEntry
 
