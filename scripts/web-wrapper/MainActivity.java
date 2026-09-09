@@ -139,7 +139,7 @@ public class MainActivity extends Activity {
             while ((n = stream.read(buf)) != -1) out.write(buf, 0, n);
             builderOptions = new JSONObject(out.toString("UTF-8"));
         } catch (Exception ignored) { }
-        if (option("fullscreen")) getWindow().setFlags(1024, 1024);
+        configureDisplayMode();
         configureWebView();
 
         registerMediaReceiver();
@@ -147,6 +147,35 @@ public class MainActivity extends Activity {
         webView.loadUrl(
             APP_ORIGIN + "/index.html"
         );
+    }
+
+    private void configureDisplayMode() {
+        final boolean immersive = option("fullscreen");
+        getWindow().clearFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        if (Build.VERSION.SDK_INT >= 30) {
+            getWindow().setDecorFitsSystemWindows(false);
+            webView.setOnApplyWindowInsetsListener((view, insets) -> {
+                int mask = android.view.WindowInsets.Type.displayCutout() | android.view.WindowInsets.Type.ime();
+                if (!immersive) mask |= android.view.WindowInsets.Type.systemBars();
+                android.graphics.Insets safe = insets.getInsets(mask);
+                view.setPadding(safe.left, safe.top, safe.right, safe.bottom);
+                return insets;
+            });
+            webView.post(() -> {
+                android.view.WindowInsetsController controller = getWindow().getInsetsController();
+                if (controller != null) {
+                    controller.setSystemBarsAppearance(android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS, android.view.WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS | android.view.WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS);
+                    if (immersive) {
+                        controller.setSystemBarsBehavior(android.view.WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+                        controller.hide(android.view.WindowInsets.Type.systemBars());
+                    } else controller.show(android.view.WindowInsets.Type.systemBars());
+                }
+                webView.requestApplyInsets();
+            });
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(immersive ? android.view.View.SYSTEM_UI_FLAG_FULLSCREEN | android.view.View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | android.view.View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY : android.view.View.SYSTEM_UI_FLAG_VISIBLE);
+            if (immersive) getWindow().addFlags(android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
     }
 
     private void configureWebView() {

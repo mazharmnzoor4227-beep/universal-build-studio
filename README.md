@@ -81,3 +81,11 @@ The interface uses a monochrome graphite palette. HTML/web APK options now inclu
 - File inputs already use the Android picker without all-files access.
 
 This is not an all-permissions switch. Contacts, calendar, Bluetooth, SMS, overlays, accessibility and other native features require a complete Android/Flutter implementation, whose manifest is preserved. Permission declarations alone do not implement a feature or override Android approval.
+
+## Version 3.3 reset and display
+Reset project clears the saved draft and all web options, recreates the editor state and hides previous APK output. It keeps connection settings, history, original files and exported APKs. Reset is disabled during a build/preview and checks background work before proceeding.
+
+Generated web APKs explicitly show system bars with fullscreen off and apply system-bar, keyboard and cutout insets on Android 11+. Fullscreen on uses immersive mode with swipe-to-reveal system bars. Complete Android/Flutter projects continue to control their own window behavior. Rebuild an existing generated app to apply this fix.
+
+UI reference: https://m3.material.io/foundations/layout/grids-spacing/spacing
+Display reference: https://developer.android.com/develop/ui/views/layout/edge-to-edge

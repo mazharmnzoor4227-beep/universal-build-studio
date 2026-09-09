@@ -73,6 +73,7 @@ fun UniversalBuildStudioApp() {
         )
     }
 
+    var projectRevision by remember { mutableStateOf(0) }
     StudioTheme {
         BackHandler(enabled = selectedTab != "Builder") { selectedTab = "Builder" }
         Scaffold(bottomBar = {
@@ -87,7 +88,18 @@ fun UniversalBuildStudioApp() {
 
             "Builder" -> {
 
+                key(projectRevision) {
                 BuilderScreen(
+                    onResetProject = {
+                        sessionStore.clear()
+                        WebOptions(context).clear()
+                        val fresh = sessionStore.load()
+                        appName = fresh.appName
+                        packageName = fresh.packageName
+                        projectName = fresh.projectName
+                        iconSelected = false
+                        projectRevision++
+                    },
                     appName = appName,
                     packageName =
                         packageName,
@@ -168,6 +180,7 @@ fun UniversalBuildStudioApp() {
                             "History"
                     }
                 )
+                }
             }
 
             "GitHub" -> {

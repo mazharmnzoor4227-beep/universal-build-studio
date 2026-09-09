@@ -34,7 +34,7 @@ fun StudioTheme(content: @Composable () -> Unit) {
 
 @Composable
 fun StudioHeader(title: String, subtitle: String) {
-    Text("UNIVERSAL / STUDIO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, letterSpacing = 2.sp)
+    Text("UNIVERSAL BUILD STUDIO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, letterSpacing = 1.sp)
     Spacer(Modifier.height(12.dp))
     Text(title, style = MaterialTheme.typography.headlineLarge)
     Spacer(Modifier.height(6.dp))

@@ -3,6 +3,11 @@ package com.aistudio.universalbuilder
 import android.net.Uri
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.UploadFile
+import androidx.compose.material.icons.outlined.AddPhotoAlternate
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +33,7 @@ fun BuilderCard(
                 MaterialTheme.colorScheme.surface,
                 RoundedCornerShape(20.dp)
             )
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))
             .padding(20.dp)
     ) {
         Text(
@@ -82,16 +88,12 @@ fun AppIconPicker(
                     update = {
                         it.setImageURI(iconUri)
                     },
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(18.dp))
                 )
 
             } else {
 
-                Text(
-                    text = "ICON",
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                Icon(Icons.Outlined.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(28.dp))
             }
         }
 
@@ -159,11 +161,12 @@ fun ProjectInfoCard(
         title = "01  /  Project source"
     ) {
 
-        Button(
-            onClick = onUploadClick,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text("Choose project file")
+        Text("Start with your source", style = MaterialTheme.typography.titleLarge)
+        Text("Choose an HTML file or a complete project ZIP.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+        OutlinedButton(onClick = onUploadClick, modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)) {
+            Icon(Icons.Outlined.UploadFile, contentDescription = null)
+            Spacer(Modifier.width(10.dp))
+            Text("Choose project")
         }
 
         Spacer(Modifier.height(10.dp))

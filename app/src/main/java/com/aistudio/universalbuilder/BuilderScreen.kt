@@ -24,6 +24,7 @@ import java.io.File
 
 @Composable
 fun BuilderScreen(
+    onResetProject: () -> Unit,
     appName: String,
     packageName: String,
     projectName: String,
@@ -117,7 +118,7 @@ fun BuilderScreen(
         mutableStateOf(false)
     }
 
-    var showLastBuild by remember { mutableStateOf(true) }
+    var showLastBuild by remember { mutableStateOf(savedSession.projectUri.isNotBlank()) }
 
     var generatedApk by remember {
         mutableStateOf<File?>(null)
@@ -349,7 +350,20 @@ fun BuilderScreen(
             .padding(18.dp)
     ) {
 
-        StudioHeader("Create your next app", "Bring your project. Leave with an APK.")
+        StudioHeader("Build something great.", "Your project, packaged for Android.")
+        var checkingReset by remember { mutableStateOf(false) }
+        OutlinedButton(onClick = {
+            checkingReset = true
+            scope.launch {
+                val active = withContext(Dispatchers.IO) { BuildStatusHelper.getCurrentState(context).isBuilding }
+                checkingReset = false
+                if (active) buildStatus = "Wait for the current build to finish before resetting."
+                else onResetProject()
+            }
+        }, enabled = !isBuilding && !preparingPreview && !checkingReset, modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+            Text(if (checkingReset) "Checking build…" else "Reset project · Start fresh")
+        }
+        Text("Clears this draft and its options. Saved APKs, build history and your connection stay available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
         Text("HTML  /  React & Vite  /  Android  /  Flutter", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(20.dp))
         ProjectInfoCard(
@@ -465,7 +479,7 @@ fun BuilderScreen(
         )
 
         BuilderCard(
-            title = "Name & package"
+            title = "App details"
         ) {
 
             OutlinedTextField(
@@ -537,12 +551,12 @@ fun BuilderScreen(
         var showOptions by remember { mutableStateOf(false) }
         BuilderCard(title = "03  /  Capabilities") {
             Text("Optional features for web apps", color = MaterialTheme.colorScheme.onSurfaceVariant)
-            TextButton(onClick = { showOptions = !showOptions }) { Text(if (showOptions) "Hide options" else "Customize permissions & display") }
+            TextButton(onClick = { showOptions = !showOptions }) { Text(if (showOptions) "Hide options" else "Choose app features") }
             if (showOptions) {
                 val groups = listOf(
                     "Capture & media" to listOf(Triple("camera", "Camera", "Take photos and use web camera capture"), Triple("microphone", "Microphone", "Record audio from your app"), Triple("library", "Photos, videos & audio", "Read media after Android approval"), Triple("media", "Background audio", "Native playback and media controls")),
                     "Location & device" to listOf(Triple("location", "Foreground location", "Web geolocation while the app is open"), Triple("notifications", "Local notifications", "Show alerts through NativeDevice"), Triple("vibration", "Vibration", "Haptic feedback through NativeDevice"), Triple("network", "Connection status", "Check connectivity through NativeDevice")),
-                    "Display" to listOf(Triple("landscape", "Landscape layout", "Open the generated app horizontally"), Triple("fullscreen", "Fullscreen", "Hide the status bar in your app"))
+                    "Display" to listOf(Triple("landscape", "Landscape layout", "Open the generated app horizontally"), Triple("fullscreen", "Fullscreen", "On: immersive view. Off: show system bars"))
                 )
                 groups.forEach { (heading, items) ->
                     Text(heading, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
@@ -670,7 +684,7 @@ fun BuilderScreen(
 
             Text(
                 if (preparingPreview) {
-                    "PREPARING..."
+                    "Preparing preview…"
                 } else {
                     "Preview project"
                 }
