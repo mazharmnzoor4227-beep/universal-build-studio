@@ -15,13 +15,13 @@ import androidx.compose.ui.unit.sp
 fun StudioTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = darkColorScheme(
-            primary = Color(0xFFB6E8CE), onPrimary = Color(0xFF123526),
-            primaryContainer = Color(0xFF234537), onPrimaryContainer = Color(0xFFD4F5E4),
-            secondary = Color(0xFFB4C6BE), background = Color(0xFF101513),
-            surface = Color(0xFF171E1B), surfaceVariant = Color(0xFF222C27),
-            onBackground = Color(0xFFF1F5F2), onSurface = Color(0xFFF1F5F2),
-            onSurfaceVariant = Color(0xFFACBAB2), outline = Color(0xFF526158),
-            outlineVariant = Color(0xFF303D35)
+            primary = Color(0xFFF4F4F5), onPrimary = Color(0xFF121212),
+            primaryContainer = Color(0xFF303033), onPrimaryContainer = Color(0xFFFFFFFF),
+            secondary = Color(0xFFC8C8CC), background = Color(0xFF0D0D0F),
+            surface = Color(0xFF19191C), surfaceVariant = Color(0xFF26262A),
+            onBackground = Color(0xFFF5F5F7), onSurface = Color(0xFFF5F5F7),
+            onSurfaceVariant = Color(0xFFB6B6BF), outline = Color(0xFF72727C),
+            outlineVariant = Color(0xFF36363D)
         ),
         shapes = Shapes(small = RoundedCornerShape(12.dp), medium = RoundedCornerShape(18.dp), large = RoundedCornerShape(24.dp)),
         typography = Typography(

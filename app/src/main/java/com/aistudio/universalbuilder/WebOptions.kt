@@ -6,6 +6,6 @@ class WebOptions(context: Context) {
     fun enabled(key: String) = prefs.getBoolean(key, false)
     fun set(key: String, value: Boolean) { prefs.edit().putBoolean(key, value).apply() }
     fun json(): JSONObject = JSONObject().apply {
-        for (key in listOf("camera", "microphone", "library", "media", "landscape", "fullscreen")) put(key, enabled(key))
+        for (key in listOf("camera", "microphone", "library", "media", "landscape", "fullscreen", "location", "notifications", "vibration", "network")) put(key, enabled(key))
     }
 }

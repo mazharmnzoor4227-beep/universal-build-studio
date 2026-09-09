@@ -140,7 +140,7 @@ fun BuildStatusCard(
                     status.contains("started", true) ||
                     status.contains("ready", true)
                 ) {
-                    Color(0xFF54DFA8)
+                    MaterialTheme.colorScheme.primary
                 } else {
                     MaterialTheme.colorScheme.onSurface
                 },

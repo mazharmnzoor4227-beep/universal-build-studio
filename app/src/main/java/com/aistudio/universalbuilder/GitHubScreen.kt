@@ -295,7 +295,7 @@ fun GitHubScreen(
                             ignoreCase = true
                         )
                     ) {
-                        Color(0xFF49DDA5)
+                        MaterialTheme.colorScheme.primary
                     } else {
                         MaterialTheme.colorScheme.onSurface
                     },

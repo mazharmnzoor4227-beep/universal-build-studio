@@ -52,7 +52,7 @@ fun PreviewPanel(
             text = previewStatus,
             color = when {
                 previewStatus.contains("✓") ->
-                    Color(0xFF51DFA8)
+                    MaterialTheme.colorScheme.primary
 
                 previewStatus.contains("⚠") ->
                     Color(0xFFFFC857)

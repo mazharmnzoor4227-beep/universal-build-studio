@@ -28,6 +28,8 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private android.webkit.GeolocationPermissions.Callback locationCallback;
+    private String locationOrigin;
     private boolean permissionAsked;
     private PermissionRequest pendingWebPermission;
     private WebChromeClient.FileChooserParams pendingChooser;
@@ -165,6 +167,8 @@ public class MainActivity extends Activity {
             false
         );
 
+        webView.addJavascriptInterface(new DeviceBridge(), "NativeDevice");
+        webView.getSettings().setGeolocationEnabled(option("location"));
         if (option("media")) webView.addJavascriptInterface(
             new NativeMediaBridge(),
             "NativeMedia"
@@ -247,6 +251,17 @@ public class MainActivity extends Activity {
                     return true;
                 }
 
+                @Override public void onGeolocationPermissionsShowPrompt(String origin, android.webkit.GeolocationPermissions.Callback callback) {
+                    if (!option("location") || !APP_ORIGIN.equals(origin.replaceAll("/$", ""))) { callback.invoke(origin, false, false); return; }
+                    if (locationCallback != null) { callback.invoke(origin, false, false); return; }
+                    locationCallback = callback; locationOrigin = origin;
+                    if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) finishLocation();
+                    else requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION}, 7201);
+                }
+                @Override public void onGeolocationPermissionsHidePrompt() {
+                    if (locationCallback != null) locationCallback.invoke(locationOrigin, false, false);
+                    locationCallback = null;
+                }
                 @Override public void onPermissionRequestCanceled(PermissionRequest request) {
                     if (pendingWebPermission == request) pendingWebPermission = null;
                 }
@@ -395,6 +410,8 @@ public class MainActivity extends Activity {
             grantResults
         );
 
+        if (requestCode == 7201) finishLocation();
+        if (requestCode == 7202) runJs("window.dispatchEvent(new Event('native-notifications-ready'));");
         if (
             requestCode ==
             MEDIA_PERMISSION_REQUEST
@@ -405,6 +422,45 @@ public class MainActivity extends Activity {
                 "window.dispatchEvent(" +
                 "new CustomEvent('native-library-ready'));"
             );
+        }
+    }
+
+    private void finishLocation() {
+        if (locationCallback == null) return;
+        boolean granted = checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+        locationCallback.invoke(locationOrigin, granted, false); locationCallback = null;
+    }
+
+    public class DeviceBridge {
+        @android.webkit.JavascriptInterface public boolean hasNotifications() {
+            return option("notifications") && (Build.VERSION.SDK_INT < 33 || checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED);
+        }
+        @android.webkit.JavascriptInterface public void requestNotifications() {
+            if (option("notifications") && Build.VERSION.SDK_INT >= 33 && !hasNotifications()) runOnUiThread(() -> requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 7202));
+        }
+        @android.webkit.JavascriptInterface public boolean notify(String title, String body) {
+            if (!hasNotifications()) return false;
+            try {
+                android.app.NotificationManager manager = (android.app.NotificationManager)getSystemService(NOTIFICATION_SERVICE);
+                if (Build.VERSION.SDK_INT >= 26) manager.createNotificationChannel(new android.app.NotificationChannel("app-alerts", "App alerts", android.app.NotificationManager.IMPORTANCE_DEFAULT));
+                android.app.Notification.Builder builder = Build.VERSION.SDK_INT >= 26 ? new android.app.Notification.Builder(MainActivity.this, "app-alerts") : new android.app.Notification.Builder(MainActivity.this);
+                android.app.PendingIntent open = android.app.PendingIntent.getActivity(MainActivity.this, 0, new Intent(MainActivity.this, MainActivity.class), android.app.PendingIntent.FLAG_UPDATE_CURRENT | android.app.PendingIntent.FLAG_IMMUTABLE);
+                manager.notify(1001, builder.setSmallIcon(android.R.drawable.ic_dialog_info).setContentTitle(title == null ? "" : title).setContentText(body == null ? "" : body).setContentIntent(open).setAutoCancel(true).build());
+                return true;
+            } catch (Exception e) { return false; }
+        }
+        @android.webkit.JavascriptInterface public void vibrate(int milliseconds) {
+            if (!option("vibration")) return;
+            android.os.Vibrator vibrator = (android.os.Vibrator)getSystemService(VIBRATOR_SERVICE);
+            if (vibrator == null || !vibrator.hasVibrator()) return;
+            long duration = Math.max(1, Math.min(2000, milliseconds));
+            if (Build.VERSION.SDK_INT >= 26) vibrator.vibrate(android.os.VibrationEffect.createOneShot(duration, android.os.VibrationEffect.DEFAULT_AMPLITUDE)); else vibrator.vibrate(duration);
+        }
+        @android.webkit.JavascriptInterface public boolean isConnected() {
+            if (!option("network")) return false;
+            android.net.ConnectivityManager manager = (android.net.ConnectivityManager)getSystemService(CONNECTIVITY_SERVICE);
+            android.net.NetworkCapabilities capabilities = manager.getNetworkCapabilities(manager.getActiveNetwork());
+            return capabilities != null && capabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_VALIDATED);
         }
     }
 

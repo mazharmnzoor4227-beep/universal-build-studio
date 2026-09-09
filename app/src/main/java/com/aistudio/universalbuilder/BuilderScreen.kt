@@ -539,13 +539,26 @@ fun BuilderScreen(
             Text("Optional features for web apps", color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = { showOptions = !showOptions }) { Text(if (showOptions) "Hide options" else "Customize permissions & display") }
             if (showOptions) {
-                listOf("camera" to "Camera", "microphone" to "Microphone", "library" to "Media library", "media" to "Media controls", "landscape" to "Landscape", "fullscreen" to "Fullscreen").forEach { (key, label) ->
-                    var checked by remember { mutableStateOf(options.enabled(key)) }
-                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        Text(label, modifier = Modifier.weight(1f))
-                        Switch(checked = checked, onCheckedChange = { checked = it; options.set(key, it) }, enabled = !isBuilding)
+                val groups = listOf(
+                    "Capture & media" to listOf(Triple("camera", "Camera", "Take photos and use web camera capture"), Triple("microphone", "Microphone", "Record audio from your app"), Triple("library", "Photos, videos & audio", "Read media after Android approval"), Triple("media", "Background audio", "Native playback and media controls")),
+                    "Location & device" to listOf(Triple("location", "Foreground location", "Web geolocation while the app is open"), Triple("notifications", "Local notifications", "Show alerts through NativeDevice"), Triple("vibration", "Vibration", "Haptic feedback through NativeDevice"), Triple("network", "Connection status", "Check connectivity through NativeDevice")),
+                    "Display" to listOf(Triple("landscape", "Landscape layout", "Open the generated app horizontally"), Triple("fullscreen", "Fullscreen", "Hide the status bar in your app"))
+                )
+                groups.forEach { (heading, items) ->
+                    Text(heading, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                    items.forEach { (key, label, description) ->
+                        var checked by remember { mutableStateOf(options.enabled(key)) }
+                        Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f).padding(end = 12.dp)) {
+                                Text(label, style = MaterialTheme.typography.bodyLarge)
+                                Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = checked, onCheckedChange = { checked = it; options.set(key, it) }, enabled = !isBuilding)
+                        }
                     }
                 }
+                Text("File selection already works without full storage access. Contacts, Bluetooth, calendar, SMS and special access need an Android or Flutter project with the matching native implementation. Its manifest permissions are preserved.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 12.dp))
+
             }
         }
         Spacer(Modifier.height(12.dp))

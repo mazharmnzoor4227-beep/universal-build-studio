@@ -2,7 +2,8 @@ name: Verify APK adapters
 on:
   workflow_dispatch:
   push:
-    branches: [fix/build-reliability]
+    branches: [main, fix/build-reliability]
+    paths: ["scripts/**", ".github/workflows/verify-adapters.yml"]
 permissions:
   contents: read
 jobs:
@@ -21,7 +22,7 @@ jobs:
         run: |
           mkdir -p /tmp/web-fixture
           echo '<!doctype html><html><body><h1>APK smoke test</h1><input type="file"><audio controls></audio></body></html>' > /tmp/web-fixture/index.html
-          echo '{"appName":"Test & Build", "packageName":"com.test.fixture", "options":{"media":true,"library":true}}' > /tmp/meta.json
+          echo '{"appName":"Test & Build", "packageName":"com.test.fixture", "options":{"media":true,"library":true,"location":true,"notifications":true,"vibration":true,"network":true}}' > /tmp/meta.json
           bash scripts/build-web-apk.sh /tmp/web-fixture "$GITHUB_WORKSPACE/output" '' /tmp/meta.json
       - uses: actions/upload-artifact@v4
         with: {name: web-smoke-apk, path: output/generated-app.apk, retention-days: 1}
@@ -35,6 +36,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with: {name: vite-smoke-apk, path: vite-output/generated-app.apk, retention-days: 1}
   flutter:
+    if: github.ref != 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

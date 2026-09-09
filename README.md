@@ -70,3 +70,14 @@ Keep the same package ID and signing key for updates; increase the version code.
 - Preview and generated APK behavior differ for native APIs.
 - Phone installation, runtime permissions, lock-screen playback, and signed updates require device checks; compilation alone is not proof of these behaviors.
 - Optional future work: named project library, full in-app build logs/cancel controls, Godot export, native release/flavor selection, and preview parity.
+
+## Version 3.2 capabilities
+The interface uses a monochrome graphite palette. HTML/web APK options now include foreground geolocation, local notifications, vibration and connectivity status. All new options default off.
+
+- Location: use `navigator.geolocation.getCurrentPosition(success, error)`. Android prompts at first use; background location is not provided.
+- Notifications: call `NativeDevice.requestNotifications()` from a user action, listen for `native-notifications-ready`, then check `NativeDevice.hasNotifications()` and call `NativeDevice.notify(title, body)`. These are immediate local alerts, not scheduled or remote push; subsequent alerts replace the previous alert. System notification settings may still suppress delivery.
+- Haptics: `NativeDevice.vibrate(150)` (maximum two seconds).
+- Connectivity: `NativeDevice.isConnected()`; disabled option returns false.
+- File inputs already use the Android picker without all-files access.
+
+This is not an all-permissions switch. Contacts, calendar, Bluetooth, SMS, overlays, accessibility and other native features require a complete Android/Flutter implementation, whose manifest is preserved. Permission declarations alone do not implement a feature or override Android approval.
