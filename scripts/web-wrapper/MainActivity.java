@@ -28,6 +28,22 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private boolean permissionAsked;
+    private PermissionRequest pendingWebPermission;
+    private WebChromeClient.FileChooserParams pendingChooser;
+    private void answerWebPermission(PermissionRequest request) {
+        if (!APP_ORIGIN.equals(request.getOrigin().toString().replaceAll("/$", ""))) { request.deny(); return; }
+        ArrayList<String> allowed = new ArrayList<>();
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource) && option("camera") && checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) allowed.add(resource);
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource) && option("microphone") && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) allowed.add(resource);
+        }
+        if (allowed.isEmpty()) request.deny(); else request.grant(allowed.toArray(new String[0]));
+    }
+    private JSONObject builderOptions = new JSONObject();
+    private boolean option(String name) { return builderOptions.optBoolean(name, false); }
+    private static final String APP_ORIGIN = "https://appassets.androidplatform.net";
+
 
     private WebView webView;
 
@@ -61,8 +77,7 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "var m=document.querySelector(" +
-                        "'audio:not([paused]),video:not([paused])');" +
+                        "var m=window.__activeNativeMedia;" +
                         "if(!m)m=document.querySelector('audio,video');" +
                         "if(m)m.play();"
                     );
@@ -73,7 +88,7 @@ public class MainActivity extends Activity {
                 ) {
 
                     runJs(
-                        "var m=document.querySelector('audio,video');" +
+                        "var m=window.__activeNativeMedia||document.querySelector('audio,video');" +
                         "if(m)m.pause();"
                     );
 
@@ -116,14 +131,19 @@ public class MainActivity extends Activity {
             webView
         );
 
+        try (java.io.InputStream stream = getAssets().open("builder-options.json")) {
+            java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            byte[] buf = new byte[1024]; int n;
+            while ((n = stream.read(buf)) != -1) out.write(buf, 0, n);
+            builderOptions = new JSONObject(out.toString("UTF-8"));
+        } catch (Exception ignored) { }
+        if (option("fullscreen")) getWindow().setFlags(1024, 1024);
         configureWebView();
 
         registerMediaReceiver();
 
-        requestMediaPermissions();
-
         webView.loadUrl(
-            "file:///android_asset/www/index.html"
+            APP_ORIGIN + "/index.html"
         );
     }
 
@@ -145,18 +165,38 @@ public class MainActivity extends Activity {
             false
         );
 
-        webView.addJavascriptInterface(
+        if (option("media")) webView.addJavascriptInterface(
             new NativeMediaBridge(),
             "NativeMedia"
         );
 
-        webView.addJavascriptInterface(
+        if (option("library")) webView.addJavascriptInterface(
             new NativeLibraryBridge(),
             "NativeLibrary"
         );
 
+        final androidx.webkit.WebViewAssetLoader loader = new androidx.webkit.WebViewAssetLoader.Builder()
+            .addPathHandler("/", path -> new androidx.webkit.WebViewAssetLoader.AssetsPathHandler(this).handle("www/" + path)).build();
         webView.setWebViewClient(
             new WebViewClient() {
+                @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
+                    android.webkit.WebResourceResponse response = loader.shouldInterceptRequest(request.getUrl());
+                    if (response != null) {
+                        java.util.Map<String, String> headers = new java.util.HashMap<>();
+                        headers.put("Content-Security-Policy", "frame-src 'none'; object-src 'none'");
+                        response.setResponseHeaders(headers);
+                    }
+                    return response;
+                }
+                @Override public boolean shouldOverrideUrlLoading(WebView view, android.webkit.WebResourceRequest request) {
+                    Uri uri = request.getUrl();
+                    if ("https".equals(uri.getScheme()) && "appassets.androidplatform.net".equals(uri.getHost()) && (uri.getPort() == -1 || uri.getPort() == 443)) return false;
+                    if (request.isForMainFrame() && java.util.Arrays.asList("https", "http", "mailto", "tel", "sms").contains(uri.getScheme())) {
+                        try { startActivity(new Intent(Intent.ACTION_VIEW, uri)); } catch (Exception ignored) { }
+                    }
+                    return true;
+                }
+
 
                 @Override
                 public void onPageFinished(
@@ -199,22 +239,30 @@ public class MainActivity extends Activity {
                     fileCallback =
                         callback;
 
-                    openFileChooser(
-                        params
-                    );
+                    if (option("camera") && !permissionAsked) {
+                        pendingChooser = params;
+                        requestMediaPermissions();
+                    } else openFileChooser(params);
 
                     return true;
                 }
 
+                @Override public void onPermissionRequestCanceled(PermissionRequest request) {
+                    if (pendingWebPermission == request) pendingWebPermission = null;
+                }
                 @Override
                 public void onPermissionRequest(
                     PermissionRequest request
                 ) {
 
                     runOnUiThread(
-                        () -> request.grant(
-                            request.getResources()
-                        )
+                        () -> {
+                            if (!APP_ORIGIN.equals(request.getOrigin().toString().replaceAll("/$", ""))) { request.deny(); return; }
+                            if (!permissionAsked && (option("camera") || option("microphone"))) {
+                                pendingWebPermission = request;
+                                requestMediaPermissions();
+                            } else answerWebPermission(request);
+                        }
                     );
                 }
             }
@@ -222,6 +270,7 @@ public class MainActivity extends Activity {
     }
 
     private void requestMediaPermissions() {
+        permissionAsked = true;
 
         if (Build.VERSION.SDK_INT < 23) {
             return;
@@ -312,6 +361,11 @@ public class MainActivity extends Activity {
             );
         }
 
+        list.removeIf(permission ->
+            (permission.equals(Manifest.permission.CAMERA) && !option("camera")) ||
+            (permission.equals(Manifest.permission.RECORD_AUDIO) && !option("microphone")) ||
+            (permission.equals(Manifest.permission.POST_NOTIFICATIONS) && !option("media")) ||
+            (permission.startsWith("android.permission.READ_") && !option("library")));
         if (!list.isEmpty()) {
 
             requestPermissions(
@@ -320,7 +374,12 @@ public class MainActivity extends Activity {
                 ),
                 MEDIA_PERMISSION_REQUEST
             );
-        }
+        } else finishPermissionRequests();
+    }
+
+    private void finishPermissionRequests() {
+        if (pendingWebPermission != null) { PermissionRequest r = pendingWebPermission; pendingWebPermission = null; answerWebPermission(r); }
+        if (pendingChooser != null) { WebChromeClient.FileChooserParams p = pendingChooser; pendingChooser = null; openFileChooser(p); }
     }
 
     @Override
@@ -340,6 +399,7 @@ public class MainActivity extends Activity {
             requestCode ==
             MEDIA_PERMISSION_REQUEST
         ) {
+            finishPermissionRequests();
 
             runJs(
                 "window.dispatchEvent(" +
@@ -391,6 +451,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryAudio() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -534,6 +595,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryVideos() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -626,6 +688,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryImages() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -744,7 +807,7 @@ public class MainActivity extends Activity {
 
         fileIntent.putExtra(
             Intent.EXTRA_ALLOW_MULTIPLE,
-            true
+            params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE
         );
 
         Intent cameraIntent =
@@ -775,7 +838,7 @@ public class MainActivity extends Activity {
             );
 
         if (
-            cameraIntent.resolveActivity(
+            cameraUri != null && cameraIntent.resolveActivity(
                 getPackageManager()
             ) != null
         ) {
@@ -889,7 +952,7 @@ public class MainActivity extends Activity {
             "if(window.__mediaBridge)return;" +
             "window.__mediaBridge=true;" +
 
-            "function update(m,p){" +
+            "function update(m,p){window.__activeNativeMedia=m;" +
 
             "var t=" +
             "m.dataset.title||" +
@@ -929,6 +992,19 @@ public class MainActivity extends Activity {
     }
 
     public class NativeMediaBridge {
+        @JavascriptInterface public void play(String source, String title, String artist) {
+            runOnUiThread(() -> {
+                Intent i = new Intent(MainActivity.this, MediaPlaybackService.class);
+                i.setAction(MediaPlaybackService.ACTION_LOAD);
+                i.putExtra("source", source).putExtra(MediaPlaybackService.EXTRA_TITLE, title).putExtra(MediaPlaybackService.EXTRA_ARTIST, artist);
+                try { if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i); }
+                catch (Exception ignored) { }
+            });
+        }
+        @JavascriptInterface public void stop() {
+            runOnUiThread(() -> stopService(new Intent(MainActivity.this, MediaPlaybackService.class)));
+        }
+
 
         @JavascriptInterface
         public void updateMedia(

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 SOURCE_DIR="$1"
 OUTPUT_DIR="$2"
@@ -80,7 +80,7 @@ import sys
 
 value = sys.argv[1]
 
-match = re.search(
+match = re.fullmatch(
     r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+',
     value
 )
@@ -88,7 +88,7 @@ match = re.search(
 if match:
     package = match.group(0)
 else:
-    package = "com.generated.webapp"
+    sys.exit("Invalid package ID: expected com.example.myapp")
 
 print(package.lower())
 PY
@@ -116,6 +116,7 @@ mkdir -p \
 "$WRAPPER/app/src/main/res/values"
 
 mkdir -p "$OUTPUT_DIR"
+printf 'android.useAndroidX=true\n' > "$WRAPPER/gradle.properties"
 
 WEB_DIR="$SOURCE_DIR"
 
@@ -127,9 +128,7 @@ if [ -f "$SOURCE_DIR/package.json" ]; then
 
     cd "$SOURCE_DIR"
 
-    npm install \
-        --no-audit \
-        --no-fund
+    if [ -f package-lock.json ]; then npm ci --no-audit --no-fund; else npm install --no-audit --no-fund; fi
 
     npm run build \
         --if-present
@@ -142,6 +141,8 @@ if [ -f "$SOURCE_DIR/package.json" ]; then
 
         WEB_DIR="$SOURCE_DIR/build"
 
+    else
+        echo "Node web project must produce dist/ or build/ with index.html (static export). Backend-only and SSR projects are not APKs."; exit 1
     fi
 fi
 
@@ -273,6 +274,8 @@ plugins {
     id 'com.android.application'
 }
 
+dependencies { implementation 'androidx.webkit:webkit:1.12.1' }
+
 android {
 
     namespace 'com.generated.webapp'
@@ -287,9 +290,9 @@ android {
 
         targetSdk 35
 
-        versionCode 1
+        versionCode ${GITHUB_RUN_NUMBER:-1}
 
-        versionName '1.0'
+        versionName '1.${GITHUB_RUN_NUMBER:-0}'
     }
 
     compileOptions {
@@ -328,7 +331,7 @@ with open(
 
     f.write(
         '    <string name="app_name">'
-        + escape(name)
+        + escape(name.replace("\\", "\\\\").replace("\'", "\\\'").replace('"', '\\"'))
         + "</string>\n"
     )
 
@@ -448,6 +451,8 @@ EOF
 # --------------------------------------------------
 # BUILD APK
 # --------------------------------------------------
+
+python3 "$GITHUB_WORKSPACE/scripts/configure-web.py" "$WRAPPER" "${META_FILE:-/nonexistent}"
 
 cd "$WRAPPER"
 

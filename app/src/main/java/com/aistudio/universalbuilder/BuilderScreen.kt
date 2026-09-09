@@ -117,6 +117,8 @@ fun BuilderScreen(
         mutableStateOf(false)
     }
 
+    var showLastBuild by remember { mutableStateOf(true) }
+
     var generatedApk by remember {
         mutableStateOf<File?>(null)
     }
@@ -146,9 +148,9 @@ fun BuilderScreen(
                 }
 
             isBuilding = state.isBuilding
-            buildStatus = state.status
+            if (showLastBuild) buildStatus = state.status
 
-            if (state.apkFile != null) {
+            if (showLastBuild && state.apkFile != null) {
                 generatedApk = state.apkFile
             }
 
@@ -249,7 +251,8 @@ fun BuilderScreen(
                     iconUri = iconUri?.toString()
                 )
 
-                generatedApk = null
+                showLastBuild = false
+            generatedApk = null
                 previewUrl = null
                 previewVisible = false
 
@@ -336,6 +339,7 @@ fun BuilderScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .systemBarsPadding()
             .background(
                 Color(0xFF07090E)
             )
@@ -357,14 +361,13 @@ fun BuilderScreen(
         )
 
         Text(
-            text = "ZIP • HTML Code • Apps • Games",
+            text = "HTML • React/Vite • Android • Flutter ZIP",
             color = Color(0xFF8E98A8),
             fontSize = 13.sp
         )
 
-        Spacer(
-            Modifier.height(22.dp)
-        )
+        Text("Upload a complete project. Native Android/Flutter projects use their own name, ID and icon. Public GitHub repositories expose uploaded source ZIPs.", color = Color(0xFF8E98A8), fontSize = 12.sp)
+        Spacer(Modifier.height(22.dp))
 
         ProjectInfoCard(
             projectName = projectName,
@@ -389,6 +392,7 @@ fun BuilderScreen(
             },
 
             onUseCode = {
+                if (isBuilding) return@CodePasteCard
 
                 val result =
                     CodeProjectCreator.create(
@@ -414,7 +418,8 @@ fun BuilderScreen(
                         codeProjectName
                     )
 
-                    generatedApk = null
+                    showLastBuild = false
+            generatedApk = null
 
                     previewUrl = null
 
@@ -538,6 +543,19 @@ fun BuilderScreen(
         Spacer(
             Modifier.height(14.dp)
         )
+
+        val options = remember { WebOptions(context) }
+        BuilderCard(title = "WEB APK OPTIONS") {
+            Text("Applies to HTML / React / Vite APKs. Enable only features your code uses.")
+            listOf("camera" to "Camera", "microphone" to "Microphone", "library" to "Media library", "media" to "Media controls", "landscape" to "Landscape", "fullscreen" to "Fullscreen").forEach { (key, label) ->
+                var checked by remember { mutableStateOf(options.enabled(key)) }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                    Checkbox(checked = checked, onCheckedChange = { checked = it; options.set(key, it) }, enabled = !isBuilding)
+                    Text(label)
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
 
         OutlinedButton(
             onClick = {
@@ -709,8 +727,10 @@ fun BuilderScreen(
 
                         saveSession()
 
-                        generatedApk = null
+                        showLastBuild = false
+            generatedApk = null
 
+                        showLastBuild = true
                         isBuilding = true
 
                         buildStatus =
@@ -769,6 +789,18 @@ fun BuilderScreen(
         }
 
         if (generatedApk != null) {
+            OutlinedButton(onClick = {
+                generatedApk?.let { file ->
+                    val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+                    val share = Intent(Intent.ACTION_SEND).apply {
+                        type = "application/vnd.android.package-archive"
+                        putExtra(Intent.EXTRA_STREAM, uri)
+                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                    }
+                    context.startActivity(Intent.createChooser(share, "Share APK"))
+                }
+            }, modifier = Modifier.fillMaxWidth()) { Text("SHARE APK") }
+
 
             Spacer(
                 Modifier.height(12.dp)

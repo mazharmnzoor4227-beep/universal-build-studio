@@ -1,0 +1,52 @@
+name: Verify APK adapters
+on:
+  workflow_dispatch:
+  push:
+    branches: [fix/build-reliability]
+permissions:
+  contents: read
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - name: Build static HTML fixture
+        run: |
+          mkdir -p /tmp/web-fixture
+          echo '<!doctype html><html><body><h1>APK smoke test</h1><input type="file"><audio controls></audio></body></html>' > /tmp/web-fixture/index.html
+          echo '{"appName":"Test & Build", "packageName":"com.test.fixture", "options":{"media":true,"library":true}}' > /tmp/meta.json
+          bash scripts/build-web-apk.sh /tmp/web-fixture "$GITHUB_WORKSPACE/output" '' /tmp/meta.json
+      - uses: actions/upload-artifact@v4
+        with: {name: web-smoke-apk, path: output/generated-app.apk, retention-days: 1}
+      - name: Build Vite fixture
+        run: |
+          mkdir -p /tmp/vite-fixture
+          echo '{"name":"fixture","version":"1.0.0","type":"module","scripts":{"build":"vite build"},"devDependencies":{"vite":"6.1.0"}}' > /tmp/vite-fixture/package.json
+          echo '<html><body><div id="app"></div><script type="module" src="/main.js"></script></body></html>' > /tmp/vite-fixture/index.html
+          echo 'document.getElementById("app").textContent="Vite APK";' > /tmp/vite-fixture/main.js
+          bash scripts/build-web-apk.sh /tmp/vite-fixture "$GITHUB_WORKSPACE/vite-output" '' /tmp/meta.json
+      - uses: actions/upload-artifact@v4
+        with: {name: vite-smoke-apk, path: vite-output/generated-app.apk, retention-days: 1}
+  flutter:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: subosito/flutter-action@v2
+        with: {channel: stable}
+      - name: Build Flutter fixture
+        run: |
+          flutter create --platforms=android /tmp/flutter_fixture
+          cd /tmp/flutter_fixture
+          flutter build apk --debug
+      - uses: actions/upload-artifact@v4
+        with: {name: flutter-smoke-apk, path: /tmp/flutter_fixture/build/app/outputs/flutter-apk/app-debug.apk, retention-days: 1}

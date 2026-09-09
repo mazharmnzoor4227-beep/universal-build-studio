@@ -14,13 +14,13 @@ import okio.BufferedSink
 import org.json.JSONArray
 import org.json.JSONObject
 
-object ProjectTransport {
+class ProjectTransport(private val releaseTag: String = "universal-builder-input") {
 
-    private const val API = "https://api.github.com"
-    private const val UPLOADS = "https://uploads.github.com"
+    private val API = "https://api.github.com"
+    private val UPLOADS = "https://uploads.github.com"
 
-    private const val RELEASE_TAG = "universal-builder-input"
-    private const val ASSET_NAME = "project-input.zip"
+    private val RELEASE_TAG = "universal-builder-input"
+    private val ASSET_NAME = "project-input.zip"
 
     private val client = OkHttpClient.Builder()
         .build()
@@ -28,7 +28,7 @@ object ProjectTransport {
     data class UploadResult(
         val success: Boolean,
         val message: String,
-        val assetName: String = ASSET_NAME
+        val assetName: String = "project-input.zip"
     )
 
     suspend fun uploadProject(
@@ -130,7 +130,7 @@ object ProjectTransport {
         val existingRequest =
             Request.Builder()
                 .url(
-                    "$API/repos/$username/$repository/releases/tags/$RELEASE_TAG"
+                    "$API/repos/$username/$repository/releases/tags/$releaseTag"
                 )
                 .header(
                     "Authorization",
@@ -166,7 +166,7 @@ object ProjectTransport {
             JSONObject().apply {
                 put(
                     "tag_name",
-                    RELEASE_TAG
+                    releaseTag
                 )
 
                 put(

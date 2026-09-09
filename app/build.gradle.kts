@@ -13,8 +13,8 @@ android {
         applicationId = "com.aistudio.universalbuilder"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "2.0"
+        versionCode = 3
+        versionName = "3.0"
 
         testInstrumentationRunner =
             "androidx.test.runner.AndroidJUnitRunner"

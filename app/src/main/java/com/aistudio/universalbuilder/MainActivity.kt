@@ -60,7 +60,7 @@ fun UniversalBuildStudioApp() {
 
     var iconSelected by remember {
         mutableStateOf(
-            savedSession.iconUri
+            sessionStore.load().iconUri
                 .isNotBlank()
         )
     }
@@ -95,9 +95,9 @@ fun UniversalBuildStudioApp() {
                             projectName =
                                 projectName,
                             projectUri =
-                                savedSession.projectUri,
+                                sessionStore.load().projectUri,
                             iconUri =
-                                savedSession.iconUri
+                                sessionStore.load().iconUri
                         )
                     },
 
@@ -113,9 +113,9 @@ fun UniversalBuildStudioApp() {
                             projectName =
                                 projectName,
                             projectUri =
-                                savedSession.projectUri,
+                                sessionStore.load().projectUri,
                             iconUri =
-                                savedSession.iconUri
+                                sessionStore.load().iconUri
                         )
                     },
 
@@ -131,9 +131,9 @@ fun UniversalBuildStudioApp() {
                             projectName =
                                 projectName,
                             projectUri =
-                                savedSession.projectUri,
+                                sessionStore.load().projectUri,
                             iconUri =
-                                savedSession.iconUri
+                                sessionStore.load().iconUri
                         )
                     },
 

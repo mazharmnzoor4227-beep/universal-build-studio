@@ -9,18 +9,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-object BuildMetaTransport {
+class BuildMetaTransport(private val releaseTag: String = "universal-builder-input") {
 
-    private const val API =
+    private val API =
         "https://api.github.com"
 
-    private const val UPLOADS =
+    private val UPLOADS =
         "https://uploads.github.com"
 
-    private const val RELEASE_TAG =
+    private val RELEASE_TAG =
         "universal-builder-input"
 
-    const val META_ASSET_NAME =
+    val META_ASSET_NAME =
         "build-meta.json"
 
     private val client =
@@ -37,7 +37,8 @@ object BuildMetaTransport {
         packageName: String,
         username: String,
         repository: String,
-        token: String
+        token: String,
+        options: org.json.JSONObject = org.json.JSONObject()
     ): MetaUploadResult =
         withContext(Dispatchers.IO) {
 
@@ -63,6 +64,7 @@ object BuildMetaTransport {
 
                 val json =
                     JSONObject().apply {
+                        put("options", options)
 
                         put(
                             "appName",
@@ -145,7 +147,7 @@ object BuildMetaTransport {
             Request.Builder()
                 .url(
                     "$API/repos/$username/$repository/" +
-                        "releases/tags/$RELEASE_TAG"
+                        "releases/tags/$releaseTag"
                 )
                 .header(
                     "Authorization",

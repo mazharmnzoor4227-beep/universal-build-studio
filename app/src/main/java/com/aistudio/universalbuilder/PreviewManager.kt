@@ -156,6 +156,8 @@ object PreviewManager {
                     ZipInputStream(input)
                         .use { zip ->
 
+                            var entries = 0
+                            var expanded = 0L
                             var entry =
                                 zip.nextEntry
 
@@ -165,6 +167,7 @@ object PreviewManager {
                                 )
 
                             while (entry != null) {
+                            require(++entries <= 20000) { "ZIP has too many entries" }
 
                                 val target =
                                     File(
@@ -212,7 +215,9 @@ object PreviewManager {
                                                 break
                                             }
 
-                                            output.write(
+                                            expanded += count
+                                        require(expanded <= 1024L * 1024 * 1024) { "Expanded ZIP exceeds 1 GB" }
+                                        output.write(
                                                 buffer,
                                                 0,
                                                 count

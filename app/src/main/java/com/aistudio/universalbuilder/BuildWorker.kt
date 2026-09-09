@@ -86,8 +86,14 @@ class BuildWorker(
                         projectUri = projectUri,
                         projectName = projectName,
                         iconUri = iconUri
-                    )
+                    ),
+                    inputData.getString("request_id") ?: id.toString()
                 )
+
+            if (buildResult.pending && runAttemptCount < 240) {
+                setProgress(errorData(buildResult.message))
+                return Result.retry()
+            }
 
             if (
                 buildResult.success &&
@@ -119,6 +125,8 @@ class BuildWorker(
                 )
             }
 
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
 
             Result.failure(

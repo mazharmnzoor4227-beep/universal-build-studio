@@ -14,18 +14,18 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 
-object IconTransport {
+class IconTransport(private val releaseTag: String = "universal-builder-input") {
 
-    private const val API =
+    private val API =
         "https://api.github.com"
 
-    private const val UPLOADS =
+    private val UPLOADS =
         "https://uploads.github.com"
 
-    private const val RELEASE_TAG =
+    private val RELEASE_TAG =
         "universal-builder-input"
 
-    const val ICON_ASSET_NAME =
+    val ICON_ASSET_NAME =
         "app-icon.png"
 
     private val client =
@@ -177,12 +177,14 @@ object IconTransport {
         val output =
             ByteArrayOutputStream()
 
-        bitmap.compress(
+        val scaled = Bitmap.createScaledBitmap(bitmap, 512, 512, true)
+        scaled.compress(
             Bitmap.CompressFormat.PNG,
             100,
             output
         )
 
+        if (scaled !== bitmap) scaled.recycle()
         bitmap.recycle()
 
         return output.toByteArray()
@@ -198,7 +200,7 @@ object IconTransport {
             Request.Builder()
                 .url(
                     "$API/repos/$username/$repository/" +
-                        "releases/tags/$RELEASE_TAG"
+                        "releases/tags/$releaseTag"
                 )
                 .headers(
                     headers(token)
