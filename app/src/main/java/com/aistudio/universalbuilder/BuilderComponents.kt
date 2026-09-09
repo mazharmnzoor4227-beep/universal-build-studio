@@ -25,14 +25,14 @@ fun BuilderCard(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color(0xFF11151D),
+                MaterialTheme.colorScheme.surface,
                 RoundedCornerShape(20.dp)
             )
-            .padding(16.dp)
+            .padding(20.dp)
     ) {
         Text(
             text = title,
-            color = Color(0xFFA58BFF),
+            color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
             fontSize = 13.sp
         )
@@ -52,7 +52,7 @@ fun AppIconPicker(
         modifier = Modifier
             .fillMaxWidth()
             .background(
-                Color(0xFF171C25),
+                MaterialTheme.colorScheme.surfaceVariant,
                 RoundedCornerShape(16.dp)
             )
             .clickable { onClick() }
@@ -64,7 +64,7 @@ fun AppIconPicker(
             modifier = Modifier
                 .size(70.dp)
                 .background(
-                    Color(0xFF29233E),
+                    MaterialTheme.colorScheme.primaryContainer,
                     RoundedCornerShape(18.dp)
                 ),
             contentAlignment = Alignment.Center
@@ -89,7 +89,7 @@ fun AppIconPicker(
 
                 Text(
                     text = "ICON",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -102,18 +102,18 @@ fun AppIconPicker(
             Text(
                 text =
                     if (iconUri != null)
-                        "ICON SELECTED"
+                        "App icon selected"
                     else
-                        "SELECT LOGO / ICON",
-                color = Color.White,
+                        "Choose an app icon",
+                color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
 
             Spacer(Modifier.height(4.dp))
 
             Text(
-                text = "Tap to choose image",
-                color = Color(0xFF8E98A8),
+                text = "Tap to change • PNG or JPG",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
         }
@@ -122,12 +122,17 @@ fun AppIconPicker(
 
 @Composable
 fun BuildStatusCard(
-    status: String
+    status: String,
+    isBuilding: Boolean = false
 ) {
     BuilderCard(
-        title = "BUILD STATUS"
+        title = "Build status"
     ) {
 
+        if (isBuilding) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            Spacer(Modifier.height(12.dp))
+        }
         Text(
             text = status,
             color =
@@ -137,7 +142,7 @@ fun BuildStatusCard(
                 ) {
                     Color(0xFF54DFA8)
                 } else {
-                    Color.White
+                    MaterialTheme.colorScheme.onSurface
                 },
             fontSize = 13.sp
         )
@@ -151,21 +156,21 @@ fun ProjectInfoCard(
     onUploadClick: () -> Unit
 ) {
     BuilderCard(
-        title = "PROJECT"
+        title = "01  /  Project source"
     ) {
 
         Button(
             onClick = onUploadClick,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("UPLOAD PROJECT / ZIP")
+            Text("Choose project file")
         }
 
         Spacer(Modifier.height(10.dp))
 
         Text(
             text = projectName,
-            color = Color.White,
+            color = MaterialTheme.colorScheme.onSurface,
             fontWeight = FontWeight.SemiBold,
             fontSize = 13.sp
         )
@@ -174,7 +179,7 @@ fun ProjectInfoCard(
 
         Text(
             text = projectType,
-            color = Color(0xFF929CAF),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp
         )
     }

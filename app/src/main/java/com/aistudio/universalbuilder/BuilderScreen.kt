@@ -339,9 +339,9 @@ fun BuilderScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .systemBarsPadding()
+            .imePadding()
             .background(
-                Color(0xFF07090E)
+                MaterialTheme.colorScheme.background
             )
             .verticalScroll(
                 rememberScrollState()
@@ -349,31 +349,14 @@ fun BuilderScreen(
             .padding(18.dp)
     ) {
 
-        Spacer(
-            Modifier.height(22.dp)
-        )
-
-        Text(
-            text = "UNIVERSAL BUILD STUDIO",
-            color = Color.White,
-            fontSize = 24.sp,
-            fontWeight = FontWeight.Black
-        )
-
-        Text(
-            text = "HTML • React/Vite • Android • Flutter ZIP",
-            color = Color(0xFF8E98A8),
-            fontSize = 13.sp
-        )
-
-        Text("Upload a complete project. Native Android/Flutter projects use their own name, ID and icon. Public GitHub repositories expose uploaded source ZIPs.", color = Color(0xFF8E98A8), fontSize = 12.sp)
-        Spacer(Modifier.height(22.dp))
-
+        StudioHeader("Create your next app", "Bring your project. Leave with an APK.")
+        Text("HTML  /  React & Vite  /  Android  /  Flutter", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+        Spacer(Modifier.height(20.dp))
         ProjectInfoCard(
             projectName = projectName,
             projectType = projectType,
             onUploadClick = {
-
+                if (isBuilding) return@ProjectInfoCard
                 projectPicker.launch(
                     arrayOf("*/*")
                 )
@@ -384,6 +367,11 @@ fun BuilderScreen(
             Modifier.height(14.dp)
         )
 
+        var showCode by remember { mutableStateOf(false) }
+        TextButton(onClick = { showCode = !showCode }, enabled = !isBuilding) {
+            Text(if (showCode) "Close code editor" else "Or paste HTML code")
+        }
+        if (showCode) {
         CodePasteCard(
             htmlCode = htmlCode,
 
@@ -456,8 +444,9 @@ fun BuilderScreen(
             Modifier.height(14.dp)
         )
 
+        }
         BuilderCard(
-            title = "APP ICON"
+            title = "02  /  App identity"
         ) {
 
             AppIconPicker(
@@ -476,7 +465,7 @@ fun BuilderScreen(
         )
 
         BuilderCard(
-            title = "APP DETAILS"
+            title = "Name & package"
         ) {
 
             OutlinedTextField(
@@ -545,16 +534,22 @@ fun BuilderScreen(
         )
 
         val options = remember { WebOptions(context) }
-        BuilderCard(title = "WEB APK OPTIONS") {
-            Text("Applies to HTML / React / Vite APKs. Enable only features your code uses.")
-            listOf("camera" to "Camera", "microphone" to "Microphone", "library" to "Media library", "media" to "Media controls", "landscape" to "Landscape", "fullscreen" to "Fullscreen").forEach { (key, label) ->
-                var checked by remember { mutableStateOf(options.enabled(key)) }
-                Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                    Checkbox(checked = checked, onCheckedChange = { checked = it; options.set(key, it) }, enabled = !isBuilding)
-                    Text(label)
+        var showOptions by remember { mutableStateOf(false) }
+        BuilderCard(title = "03  /  Capabilities") {
+            Text("Optional features for web apps", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = { showOptions = !showOptions }) { Text(if (showOptions) "Hide options" else "Customize permissions & display") }
+            if (showOptions) {
+                listOf("camera" to "Camera", "microphone" to "Microphone", "library" to "Media library", "media" to "Media controls", "landscape" to "Landscape", "fullscreen" to "Fullscreen").forEach { (key, label) ->
+                    var checked by remember { mutableStateOf(options.enabled(key)) }
+                    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        Text(label, modifier = Modifier.weight(1f))
+                        Switch(checked = checked, onCheckedChange = { checked = it; options.set(key, it) }, enabled = !isBuilding)
+                    }
                 }
             }
         }
+        Spacer(Modifier.height(12.dp))
+        Text("Android and Flutter projects keep their own name, icon and package ID. Source uploaded to a public repository is public.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(14.dp))
 
         OutlinedButton(
@@ -664,7 +659,7 @@ fun BuilderScreen(
                 if (preparingPreview) {
                     "PREPARING..."
                 } else {
-                    "PREVIEW UPLOADED PROJECT"
+                    "Preview project"
                 }
             )
         }
@@ -691,7 +686,7 @@ fun BuilderScreen(
         )
 
         BuildStatusCard(
-            status = buildStatus
+            status = buildStatus, isBuilding = isBuilding
         )
 
         Spacer(
@@ -776,9 +771,9 @@ fun BuilderScreen(
             Text(
                 text =
                     if (isBuilding) {
-                        "BUILDING APK..."
+                        "Building your APK…"
                     } else {
-                        "BUILD APK"
+                        "Build APK"
                     },
 
                 fontSize = 17.sp,
@@ -799,7 +794,7 @@ fun BuilderScreen(
                     }
                     context.startActivity(Intent.createChooser(share, "Share APK"))
                 }
-            }, modifier = Modifier.fillMaxWidth()) { Text("SHARE APK") }
+            }, modifier = Modifier.fillMaxWidth()) { Text("Share APK") }
 
 
             Spacer(
@@ -834,7 +829,7 @@ fun BuilderScreen(
 
                 Text(
                     text =
-                        "DOWNLOAD / SAVE APK",
+                        "Save APK to phone",
                     fontWeight =
                         FontWeight.Bold
                 )
@@ -872,7 +867,7 @@ fun BuilderScreen(
             ) {
 
                 Text(
-                    text = "INSTALL APK",
+                    text = "Install APK",
                     fontWeight =
                         FontWeight.Bold
                 )
@@ -883,34 +878,6 @@ fun BuilderScreen(
             Modifier.height(12.dp)
         )
 
-        OutlinedButton(
-            onClick = onOpenGitHub,
-            modifier =
-                Modifier.fillMaxWidth()
-        ) {
-
-            Text(
-                "GITHUB BUILDER SETTINGS"
-            )
-        }
-
-        Spacer(
-            Modifier.height(8.dp)
-        )
-
-        OutlinedButton(
-            onClick = onOpenHistory,
-            modifier =
-                Modifier.fillMaxWidth()
-        ) {
-
-            Text(
-                "BUILD HISTORY"
-            )
-        }
-
-        Spacer(
-            Modifier.height(35.dp)
-        )
+        Spacer(Modifier.height(16.dp))
     }
 }

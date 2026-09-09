@@ -65,34 +65,15 @@ fun GitHubScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF07090E))
+            .background(MaterialTheme.colorScheme.background)
+            .imePadding()
             .verticalScroll(
                 rememberScrollState()
             )
             .padding(18.dp)
     ) {
 
-        Spacer(
-            Modifier.height(24.dp)
-        )
-
-        Text(
-            text = "GITHUB BUILDER",
-            color = Color.White,
-            fontSize = 25.sp,
-            fontWeight = FontWeight.Black
-        )
-
-        Text(
-            text = "Connect the real APK build engine",
-            color = Color(0xFF8D97A7),
-            fontSize = 13.sp
-        )
-
-        Spacer(
-            Modifier.height(22.dp)
-        )
-
+        StudioHeader("Workspace settings", "Connect once. Build whenever you’re ready.")
         SettingsCard {
 
             OutlinedTextField(
@@ -174,7 +155,7 @@ fun GitHubScreen(
             ) {
 
                 Text(
-                    "SAVE CONFIGURATION",
+                    "Save settings",
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -256,9 +237,9 @@ fun GitHubScreen(
 
                 Text(
                     if (isTesting)
-                        "TESTING..."
+                        "Checking connection…"
                     else
-                        "TEST CONNECTION"
+                        "Test connection"
                 )
             }
 
@@ -284,7 +265,7 @@ fun GitHubScreen(
             ) {
 
                 Text(
-                    "CLEAR SAVED CONFIG"
+                    "Disconnect account"
                 )
             }
         }
@@ -296,8 +277,8 @@ fun GitHubScreen(
         SettingsCard {
 
             Text(
-                text = "CONNECTION STATUS",
-                color = Color(0xFFA58BFF),
+                text = "Connection status",
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
 
@@ -316,7 +297,7 @@ fun GitHubScreen(
                     ) {
                         Color(0xFF49DDA5)
                     } else {
-                        Color.White
+                        MaterialTheme.colorScheme.onSurface
                     },
                 fontSize = 14.sp
             )
@@ -329,8 +310,8 @@ fun GitHubScreen(
         SettingsCard {
 
             Text(
-                text = "SECURITY",
-                color = Color(0xFFA58BFF),
+                text = "Stored on your phone",
+                color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold
             )
 
@@ -341,7 +322,7 @@ fun GitHubScreen(
             Text(
                 text =
                     "Your GitHub token is stored locally on this phone. Never paste it into your public repository or share it with anyone.",
-                color = Color(0xFF9AA4B5),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
         }
@@ -350,37 +331,13 @@ fun GitHubScreen(
             Modifier.height(20.dp)
         )
 
-        OutlinedButton(
-            onClick = onBack,
-            modifier =
-                Modifier.fillMaxWidth()
-        ) {
-
-            Text(
-                "BACK TO BUILDER"
-            )
-        }
-
-        Spacer(
-            Modifier.height(30.dp)
-        )
+        Spacer(Modifier.height(16.dp))
     }
 }
 
 @Composable
-private fun SettingsCard(
-    content:
-        @Composable ColumnScope.() -> Unit
-) {
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                Color(0xFF11151D),
-                RoundedCornerShape(20.dp)
-            )
-            .padding(16.dp),
-        content = content
-    )
+private fun SettingsCard(content: @Composable ColumnScope.() -> Unit) {
+    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+        Column(Modifier.fillMaxWidth().padding(20.dp), content = content)
+    }
 }

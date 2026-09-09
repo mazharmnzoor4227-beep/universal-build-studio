@@ -4,7 +4,15 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material3.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.ui.Modifier
+import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.*
 
 class MainActivity : ComponentActivity() {
@@ -36,7 +44,7 @@ fun UniversalBuildStudioApp() {
             sessionStore.load()
         }
 
-    var selectedTab by remember {
+    var selectedTab by rememberSaveable {
         mutableStateOf("Builder")
     }
 
@@ -65,11 +73,16 @@ fun UniversalBuildStudioApp() {
         )
     }
 
-    MaterialTheme(
-        colorScheme =
-            darkColorScheme()
-    ) {
-
+    StudioTheme {
+        BackHandler(enabled = selectedTab != "Builder") { selectedTab = "Builder" }
+        Scaffold(bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                listOf(Triple("Builder", "Build", Icons.Outlined.Build), Triple("History", "History", Icons.Outlined.History), Triple("GitHub", "Settings", Icons.Outlined.Settings)).forEach { (key, label, icon) ->
+                    NavigationBarItem(selected = selectedTab == key, onClick = { selectedTab = key }, icon = { Icon(icon, contentDescription = null) }, label = { Text(label) })
+                }
+            }
+        }) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
         when (selectedTab) {
 
             "Builder" -> {
@@ -179,5 +192,7 @@ fun UniversalBuildStudioApp() {
                 )
             }
         }
+    }
+    }
     }
 }

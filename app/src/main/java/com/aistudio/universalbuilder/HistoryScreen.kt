@@ -21,29 +21,34 @@ fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var entries by remember { mutableStateOf(BuildRecords(context).all()) }
-    Column(Modifier.fillMaxSize().systemBarsPadding().verticalScroll(rememberScrollState()).padding(18.dp)) {
-        Text("BUILD HISTORY", style = MaterialTheme.typography.headlineSmall)
-        OutlinedButton(onClick = { entries = BuildRecords(context).all() }) { Text("REFRESH") }
-        if (entries.isEmpty()) Text("No builds recorded yet. Builds made before this update are not imported.")
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        StudioHeader("Your builds", "Pick up where you left off.")
+        OutlinedButton(onClick = { entries = BuildRecords(context).all() }) { Text("Refresh builds") }
+        if (entries.isEmpty()) BuilderCard("A fresh start") {
+            Text("Your first app starts here.", style = MaterialTheme.typography.titleLarge)
+            Spacer(Modifier.height(8.dp))
+            Text("Build a project to see its progress and downloads here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            TextButton(onClick = onBack) { Text("Create an app") }
+        }
         entries.forEach { item ->
             Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
                 Column(Modifier.padding(16.dp)) {
                     Text(item.optString("name"), style = MaterialTheme.typography.titleMedium)
-                    Text(item.optString("package"))
+                    Text(item.optString("package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text(DateFormat.getDateTimeInstance().format(Date(item.optLong("created"))))
                     Text(item.optString("status"))
                     TextButton(onClick = { scope.launch {
                         withContext(Dispatchers.IO) { BackgroundBuildManager.resume(context, item.getString("id")) }
                         onBack()
-                    } }) { Text("CHECK STATUS / DOWNLOAD") }
+                    } }) { Text("Resume / check download") }
                     val url = item.optString("url")
                     if (url.startsWith("https://github.com/")) TextButton(onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
-                    }) { Text("OPEN BUILD / DOWNLOAD ARTIFACT") }
+                    }) { Text("View build on GitHub") }
                 }
             }
         }
         Text("Generated artifacts expire after one day. Export APKs you want to keep. Only the latest APK is cached.")
-        OutlinedButton(onClick = onBack) { Text("BACK TO BUILDER") }
+
     }
 }

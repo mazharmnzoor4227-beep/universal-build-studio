@@ -24,12 +24,12 @@ fun CodePasteCard(
     }
 
     BuilderCard(
-        title = "PASTE HTML CODE"
+        title = "HTML editor"
     ) {
 
         Text(
             text = "Paste complete HTML / CSS / JavaScript code here.",
-            color = Color(0xFF8E98A8)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
 
         Spacer(
@@ -63,9 +63,9 @@ fun CodePasteCard(
 
             Text(
                 if (showPreview) {
-                    "HIDE PREVIEW"
+                    "Hide preview"
                 } else {
-                    "PREVIEW CODE"
+                    "Preview code"
                 },
                 fontWeight = FontWeight.Bold
             )
@@ -140,7 +140,7 @@ fun CodePasteCard(
         ) {
 
             Text(
-                "USE THIS CODE FOR APK",
+                "Use this code",
                 fontWeight = FontWeight.Black
             )
         }
