@@ -20,7 +20,7 @@ Install the newly built Universal Build Studio APK from Actions. Enter your GitH
 
 Use `main` after the repair PR is merged. The app dispatches `build-generated-app.yml` on `main`.
 
-Choose a complete ZIP or paste HTML; enter the app name and package ID. For Web APKs, select only the capabilities your code uses. Camera/microphone/library permissions are currently requested on first launch for enabled capabilities; denied permissions are not silently granted. File pickers remain available without broad library access.
+Choose a complete ZIP or paste HTML; enter the app name and package ID. For Web APKs, select only the capabilities your code uses. Enabled camera/microphone/library permissions are requested when the native feature is first used; denied permissions are not silently granted. File pickers remain available without broad library access.
 
 Public repositories expose their input release assets. Each new build has a unique release and run name. Its temporary release is deleted after the build; deletion cannot undo earlier public access. Only build source you trust. Never include credentials or private customer information in an input ZIP.
 

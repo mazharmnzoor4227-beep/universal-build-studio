@@ -389,6 +389,7 @@ fun BuilderScreen(
             },
 
             onUseCode = {
+                if (isBuilding) return@CodePasteCard
 
                 val result =
                     CodeProjectCreator.create(

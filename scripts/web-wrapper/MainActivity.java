@@ -28,6 +28,18 @@ import org.json.JSONObject;
 import java.util.ArrayList;
 
 public class MainActivity extends Activity {
+    private boolean permissionAsked;
+    private PermissionRequest pendingWebPermission;
+    private WebChromeClient.FileChooserParams pendingChooser;
+    private void answerWebPermission(PermissionRequest request) {
+        if (!APP_ORIGIN.equals(request.getOrigin().toString().replaceAll("/$", ""))) { request.deny(); return; }
+        ArrayList<String> allowed = new ArrayList<>();
+        for (String resource : request.getResources()) {
+            if (PermissionRequest.RESOURCE_VIDEO_CAPTURE.equals(resource) && option("camera") && checkSelfPermission(Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED) allowed.add(resource);
+            if (PermissionRequest.RESOURCE_AUDIO_CAPTURE.equals(resource) && option("microphone") && checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) allowed.add(resource);
+        }
+        if (allowed.isEmpty()) request.deny(); else request.grant(allowed.toArray(new String[0]));
+    }
     private JSONObject builderOptions = new JSONObject();
     private boolean option(String name) { return builderOptions.optBoolean(name, false); }
     private static final String APP_ORIGIN = "https://appassets.androidplatform.net";
@@ -130,8 +142,6 @@ public class MainActivity extends Activity {
 
         registerMediaReceiver();
 
-        requestMediaPermissions();
-
         webView.loadUrl(
             APP_ORIGIN + "/index.html"
         );
@@ -229,22 +239,30 @@ public class MainActivity extends Activity {
                     fileCallback =
                         callback;
 
-                    openFileChooser(
-                        params
-                    );
+                    if (option("camera") && !permissionAsked) {
+                        pendingChooser = params;
+                        requestMediaPermissions();
+                    } else openFileChooser(params);
 
                     return true;
                 }
 
+                @Override public void onPermissionRequestCanceled(PermissionRequest request) {
+                    if (pendingWebPermission == request) pendingWebPermission = null;
+                }
                 @Override
                 public void onPermissionRequest(
                     PermissionRequest request
                 ) {
 
                     runOnUiThread(
-                        () -> request.grant(
-                            request.getResources()
-                        )
+                        () -> {
+                            if (!APP_ORIGIN.equals(request.getOrigin().toString().replaceAll("/$", ""))) { request.deny(); return; }
+                            if (!permissionAsked && (option("camera") || option("microphone"))) {
+                                pendingWebPermission = request;
+                                requestMediaPermissions();
+                            } else answerWebPermission(request);
+                        }
                     );
                 }
             }
@@ -252,6 +270,7 @@ public class MainActivity extends Activity {
     }
 
     private void requestMediaPermissions() {
+        permissionAsked = true;
 
         if (Build.VERSION.SDK_INT < 23) {
             return;
@@ -355,7 +374,12 @@ public class MainActivity extends Activity {
                 ),
                 MEDIA_PERMISSION_REQUEST
             );
-        }
+        } else finishPermissionRequests();
+    }
+
+    private void finishPermissionRequests() {
+        if (pendingWebPermission != null) { PermissionRequest r = pendingWebPermission; pendingWebPermission = null; answerWebPermission(r); }
+        if (pendingChooser != null) { WebChromeClient.FileChooserParams p = pendingChooser; pendingChooser = null; openFileChooser(p); }
     }
 
     @Override
@@ -426,6 +450,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryAudio() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -569,6 +594,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryVideos() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -661,6 +687,7 @@ public class MainActivity extends Activity {
     }
 
     private JSONArray queryImages() {
+        if (!permissionAsked) runOnUiThread(() -> { if (!permissionAsked) requestMediaPermissions(); });
 
         JSONArray result =
             new JSONArray();
@@ -779,7 +806,7 @@ public class MainActivity extends Activity {
 
         fileIntent.putExtra(
             Intent.EXTRA_ALLOW_MULTIPLE,
-            true
+            params.getMode() == WebChromeClient.FileChooserParams.MODE_OPEN_MULTIPLE
         );
 
         Intent cameraIntent =
@@ -810,7 +837,7 @@ public class MainActivity extends Activity {
             );
 
         if (
-            cameraIntent.resolveActivity(
+            cameraUri != null && cameraIntent.resolveActivity(
                 getPackageManager()
             ) != null
         ) {

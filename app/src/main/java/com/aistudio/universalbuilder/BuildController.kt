@@ -22,6 +22,10 @@ class BuildController(private val context: Context) {
             .put("options", WebOptions(context).json()).put("owner", config.username).put("repo", config.repository).put("status", "Preparing")
         require(record.optString("owner") == config.username && record.optString("repo") == config.repository) { "Restore the original GitHub repository settings to resume this build" }
         fun save(status: String) { record.put("status", status); records.save(requestId, record) }
+        if (System.currentTimeMillis() - record.optLong("monitoringStarted", record.optLong("created")) > 2 * 60 * 60 * 1000L) {
+            save("Monitoring paused; use CHECK STATUS in History")
+            return BuildResult(false, record.getString("status"))
+        }
         try {
             if (!record.optBoolean("uploaded")) {
                 save("Uploading project")

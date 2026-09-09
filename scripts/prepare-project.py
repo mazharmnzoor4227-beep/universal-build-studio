@@ -10,6 +10,7 @@ def extract(archive, destination):
         if len(entries) > 20000: raise ValueError("ZIP contains too many entries (maximum 20000)")
         total = 0
         for e in entries:
+            if any(c in e.filename for c in ("\n", "\r", "\x00")): raise ValueError("Invalid ZIP filename")
             if "\\" in e.filename: raise ValueError("Unsupported ZIP path")
             target = (root / e.filename).resolve()
             if not target.is_relative_to(root): raise ValueError("Unsafe ZIP path")

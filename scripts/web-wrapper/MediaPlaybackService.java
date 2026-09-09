@@ -121,7 +121,7 @@ public class MediaPlaybackService extends Service {
                         ACTION_PLAY
                     );
 
-                    setPlaying(true);
+                    if (player == null) setPlaying(true);
                 }
 
                 @Override
@@ -185,7 +185,7 @@ public class MediaPlaybackService extends Service {
                     ACTION_PLAY
                 );
 
-                setPlaying(true);
+                if (player == null) setPlaying(true);
 
             } else if (
                 ACTION_PAUSE.equals(action)
@@ -214,7 +214,7 @@ public class MediaPlaybackService extends Service {
                 );
 
             } else if (
-                ACTION_UPDATE.equals(action)
+                ACTION_UPDATE.equals(action) && player == null
             ) {
 
                 String title =
