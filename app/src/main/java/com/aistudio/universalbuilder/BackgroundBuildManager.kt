@@ -15,7 +15,7 @@ object BackgroundBuildManager {
     private const val KEY_WORK_ID =
         "work_id"
 
-    fun startBuild(
+    @Synchronized fun startBuild(
         context: Context,
         appName: String,
         packageName: String,
@@ -24,6 +24,8 @@ object BackgroundBuildManager {
         iconUri: String?
     ): UUID {
 
+        val existing = WorkManager.getInstance(context).getWorkInfosForUniqueWork(WORK_NAME).get().firstOrNull { !it.state.isFinished }
+        if (existing != null) { saveWorkId(context, existing.id); return existing.id }
         val input =
             workDataOf(
                 BuildWorker.KEY_APP_NAME to appName,
@@ -61,6 +63,26 @@ object BackgroundBuildManager {
         )
 
         return request.id
+    }
+
+    fun resume(context: Context, requestId: String) {
+        val records = BuildRecords(context)
+        val record = records.get(requestId) ?: return
+        val manager = WorkManager.getInstance(context)
+        if (manager.getWorkInfosForUniqueWork(WORK_NAME).get().any { !it.state.isFinished }) return
+        record.put("monitoringStarted", System.currentTimeMillis())
+        records.save(requestId, record)
+        val input = workDataOf("request_id" to requestId,
+            BuildWorker.KEY_APP_NAME to record.optString("name"),
+            BuildWorker.KEY_PACKAGE_NAME to record.optString("package"),
+            BuildWorker.KEY_PROJECT_NAME to record.optString("projectName"),
+            BuildWorker.KEY_PROJECT_URI to record.optString("uri"),
+            BuildWorker.KEY_ICON_URI to record.optString("icon"))
+        val request = OneTimeWorkRequestBuilder<BuildWorker>().setInputData(input)
+            .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())
+            .setBackoffCriteria(BackoffPolicy.LINEAR, 15, java.util.concurrent.TimeUnit.SECONDS).build()
+        manager.enqueueUniqueWork(WORK_NAME, ExistingWorkPolicy.KEEP, request)
+        saveWorkId(context, request.id)
     }
 
     fun getWorkManager(

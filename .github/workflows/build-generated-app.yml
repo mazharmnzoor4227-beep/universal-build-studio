@@ -97,6 +97,57 @@ jobs:
           path: output/generated-app.apk
           retention-days: 1
           if-no-files-found: error
+  sign:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Check release signing configuration
+        id: signing
+        env:
+          KEYSTORE: ${{ secrets.APK_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.APK_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.APK_KEY_PASSWORD }}
+        run: |
+          if [[ -n "$KEYSTORE" && -n "$STORE_PASS" && -n "$KEY_ALIAS" && -n "$KEY_PASS" ]]; then
+            echo 'enabled=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'enabled=false' >> "$GITHUB_OUTPUT"
+            echo 'No release key configured: output keeps its project/debug signature.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/download-artifact@v4
+        if: steps.signing.outputs.enabled == 'true'
+        with: {name: generated-apk, path: unsigned}
+      - uses: actions/setup-java@v4
+        if: steps.signing.outputs.enabled == 'true'
+        with: {distribution: temurin, java-version: '17'}
+      - name: Sign and verify APK in isolated job
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          KEYSTORE: ${{ secrets.APK_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.APK_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.APK_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          umask 077
+          trap 'rm -f "$RUNNER_TEMP/release.jks"' EXIT
+          printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n1)
+          mkdir signed
+          "$TOOLS/zipalign" -p -f 4 unsigned/generated-app.apk "$RUNNER_TEMP/aligned.apk"
+          "$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out signed/generated-app.apk "$RUNNER_TEMP/aligned.apk"
+          "$TOOLS/apksigner" verify signed/generated-app.apk
+      - uses: actions/upload-artifact@v4
+        if: steps.signing.outputs.enabled == 'true'
+        with:
+          name: generated-apk
+          path: signed/generated-app.apk
+          overwrite: true
+          retention-days: 1
   cleanup:
     needs: build
     if: always() && inputs.request_id != ''

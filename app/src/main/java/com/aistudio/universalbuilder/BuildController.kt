@@ -18,7 +18,7 @@ class BuildController(private val context: Context) {
         require(config.username.matches(Regex("[A-Za-z0-9-]+")) && config.repository.matches(Regex("[A-Za-z0-9_.-]+")) && config.token.isNotBlank()) { "Configure GitHub first" }
         require(request.packageName.matches(Regex("[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+"))) { "Use a package ID such as com.example.myapp" }
         val record = records.get(requestId) ?: JSONObject().put("id", requestId).put("name", request.appName)
-            .put("package", request.packageName).put("created", System.currentTimeMillis())
+            .put("uri", request.projectUri.toString()).put("projectName", request.projectName).put("icon", request.iconUri?.toString() ?: "").put("package", request.packageName).put("created", System.currentTimeMillis())
             .put("options", WebOptions(context).json()).put("owner", config.username).put("repo", config.repository).put("status", "Preparing")
         require(record.optString("owner") == config.username && record.optString("repo") == config.repository) { "Restore the original GitHub repository settings to resume this build" }
         fun save(status: String) { record.put("status", status); records.save(requestId, record) }
@@ -45,6 +45,10 @@ class BuildController(private val context: Context) {
             val run = BuildMonitor.check(config, requestId, record.optLong("runId"))
             if (run.has("id")) record.put("runId", run.getLong("id")).put("url", run.optString("html_url"))
             if (run.optString("status") != "completed") {
+                if (System.currentTimeMillis() - record.optLong("monitoringStarted", record.optLong("created")) > 2 * 60 * 60 * 1000L) {
+                    save("Monitoring paused after two hours; use CHECK STATUS in History")
+                    return BuildResult(false, record.getString("status"))
+                }
                 if (run.optString("status") == "waiting_for_run" && System.currentTimeMillis() - record.optLong("dispatchedAt") > 10 * 60 * 1000L) {
                     save("No matching run found; inspect Actions before starting another build")
                     return BuildResult(false, record.getString("status"))

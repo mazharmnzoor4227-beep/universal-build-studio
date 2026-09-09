@@ -87,10 +87,11 @@ class BuildWorker(
                         projectName = projectName,
                         iconUri = iconUri
                     ),
-                    id.toString()
+                    inputData.getString("request_id") ?: id.toString()
                 )
 
             if (buildResult.pending && runAttemptCount < 240) {
+                setProgress(errorData(buildResult.message))
                 return Result.retry()
             }
 

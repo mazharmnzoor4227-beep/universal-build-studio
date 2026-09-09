@@ -133,7 +133,7 @@ public class MainActivity extends Activity {
         requestMediaPermissions();
 
         webView.loadUrl(
-            APP_ORIGIN + "/assets/www/index.html"
+            APP_ORIGIN + "/index.html"
         );
     }
 
@@ -166,7 +166,7 @@ public class MainActivity extends Activity {
         );
 
         final androidx.webkit.WebViewAssetLoader loader = new androidx.webkit.WebViewAssetLoader.Builder()
-            .addPathHandler("/assets/", new androidx.webkit.WebViewAssetLoader.AssetsPathHandler(this)).build();
+            .addPathHandler("/", path -> new androidx.webkit.WebViewAssetLoader.AssetsPathHandler(this).handle("www/" + path)).build();
         webView.setWebViewClient(
             new WebViewClient() {
                 @Override public android.webkit.WebResourceResponse shouldInterceptRequest(WebView view, android.webkit.WebResourceRequest request) {
