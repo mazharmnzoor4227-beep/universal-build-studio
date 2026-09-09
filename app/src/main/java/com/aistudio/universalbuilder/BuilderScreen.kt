@@ -337,6 +337,10 @@ fun BuilderScreen(
             }
         }
 
+    var editorStep by remember { mutableStateOf(0) }
+    var showTools by remember { mutableStateOf(false) }
+    val editorScroll = rememberScrollState()
+    LaunchedEffect(editorStep) { editorScroll.scrollTo(0) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -345,12 +349,28 @@ fun BuilderScreen(
                 MaterialTheme.colorScheme.background
             )
             .verticalScroll(
-                rememberScrollState()
+                editorScroll
             )
             .padding(18.dp)
     ) {
 
-        StudioHeader("Build something great.", "Your project, packaged for Android.")
+        Row(Modifier.fillMaxWidth(), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("App studio", style=MaterialTheme.typography.headlineMedium)
+                Text(if(appName.isBlank()) "Untitled project" else appName, style=MaterialTheme.typography.bodySmall, color=MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            TextButton(onClick={showTools=!showTools}) { Text(if(showTools) "Done" else "Tools") }
+        }
+        Spacer(Modifier.height(20.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+            listOf("Source", "Details", "Build").forEachIndexed { index, label ->
+                FilterChip(selected=editorStep==index,onClick={editorStep=index},label={Text("${index+1}  $label")},modifier=Modifier.weight(1f))
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        var validationMessage by remember { mutableStateOf("") }
+        var validating by remember { mutableStateOf(false) }
+        if(showTools) {
         var checkingReset by remember { mutableStateOf(false) }
         OutlinedButton(onClick = {
             checkingReset = true
@@ -366,8 +386,6 @@ fun BuilderScreen(
         Text("Clears this draft and its options. Saved APKs, build history and your connection stay available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
         Text("HTML  /  React & Vite  /  Android  /  Flutter", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(20.dp))
-        var validationMessage by remember { mutableStateOf("") }
-        var validating by remember { mutableStateOf(false) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = {
                 validating=true
@@ -382,8 +400,10 @@ fun BuilderScreen(
                 }
             }, enabled=!isBuilding && !validating, modifier=Modifier.weight(1f)) { Text("Save project") }
         }
+        }
         if(validating) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(validationMessage.isNotBlank()) Text(validationMessage, modifier=Modifier.padding(vertical=12.dp), style=MaterialTheme.typography.bodySmall)
+        if(editorStep==0) {
         ProjectInfoCard(
             projectName = projectName,
             projectType = projectType,
@@ -481,8 +501,10 @@ fun BuilderScreen(
         )
 
         }
+        }
+        if(editorStep==1) {
         BuilderCard(
-            title = "02  /  App identity"
+            title = "App icon"
         ) {
 
             AppIconPicker(
@@ -582,7 +604,7 @@ fun BuilderScreen(
 
         val options = remember { WebOptions(context) }
         var showOptions by remember { mutableStateOf(false) }
-        BuilderCard(title = "03  /  Capabilities") {
+        BuilderCard(title = "Permissions & display") {
             Text("Optional features for web apps", color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = { showOptions = !showOptions }) { Text(if (showOptions) "Hide options" else "Choose app features") }
             if (showOptions) {
@@ -612,6 +634,14 @@ fun BuilderScreen(
         Text("Android and Flutter projects keep their own name, icon and package ID. Source uploaded to a public repository is public.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.height(14.dp))
 
+        }
+        if(editorStep==2) {
+        BuilderCard("Ready to build") {
+            Text(appName.ifBlank { "Untitled app" },style=MaterialTheme.typography.titleLarge)
+            Text(projectName,style=MaterialTheme.typography.bodyMedium,color=MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(packageName,style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(16.dp))
         OutlinedButton(
             onClick = {
 
@@ -938,6 +968,13 @@ fun BuilderScreen(
             Modifier.height(12.dp)
         )
 
+        }
+        if(editorStep<2) {
+            Spacer(Modifier.height(20.dp))
+            Button(onClick={editorStep++},modifier=Modifier.fillMaxWidth().height(54.dp)) {
+                Text(if(editorStep==0) "Continue to app details" else "Review & build")
+            }
+        }
         Spacer(Modifier.height(16.dp))
     }
 }

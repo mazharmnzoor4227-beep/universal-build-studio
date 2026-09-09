@@ -27,11 +27,11 @@ fun WorkspaceScreen(onOpen: () -> Unit, onNew: () -> Unit) {
     val export=rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri -> if(uri!=null) backup?.let { item -> perform { library.export(item,uri); "Backup saved" } } }
     val restore=rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if(uri!=null) perform { library.restore(uri); "Project restored" } }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement=Arrangement.spacedBy(16.dp)) {
-        StudioHeader("Your app workspace", "Create. Refine. Build again.")
+        StudioHeader("Projects", "Your personal Android workspace")
         Surface(color=MaterialTheme.colorScheme.primary, shape=MaterialTheme.shapes.large) {
-            Column(Modifier.fillMaxWidth().padding(24.dp)) {
-                Text("Make your next idea real.",style=MaterialTheme.typography.headlineSmall)
-                Text("Start a fresh project or continue a saved app.",modifier=Modifier.padding(vertical=12.dp))
+            Column(Modifier.fillMaxWidth().padding(20.dp)) {
+                Text("Create an app",style=MaterialTheme.typography.titleLarge)
+                Text("Import code or choose a starter below.",modifier=Modifier.padding(vertical=12.dp))
                 FilledTonalButton(onClick={busy=true;scope.launch {
                     val active=withContext(Dispatchers.IO) { BuildStatusHelper.getCurrentState(context).isBuilding }
                     if(active) message="Wait for the current build" else { BuilderSessionStore(context).clear();WebOptions(context).clear();onOpen() };busy=false
@@ -44,9 +44,11 @@ fun WorkspaceScreen(onOpen: () -> Unit, onNew: () -> Unit) {
         }
         if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
         if(message.isNotBlank()) Text(message,style=MaterialTheme.typography.bodyMedium)
-        Text("MY PROJECTS  ·  ${projects.size}",style=MaterialTheme.typography.labelLarge)
+        var query by remember { mutableStateOf("") }
+        OutlinedTextField(value=query,onValueChange={query=it},placeholder={Text("Search projects")},singleLine=true,modifier=Modifier.fillMaxWidth(),shape=MaterialTheme.shapes.large)
+        Text("Saved projects · ${projects.size}",style=MaterialTheme.typography.titleMedium)
         if(projects.isEmpty()) BuilderCard("Room for your first app") { Text("Choose a template below, or open New project to import your source. Save a draft to keep a reusable copy.") }
-        projects.forEach { item ->
+        projects.filter { it.optString("name").contains(query,true) || it.optString("package").contains(query,true) }.forEach { item ->
             BuilderCard(item.optString("name")) {
                 Text(item.optString("package"),style=MaterialTheme.typography.bodySmall,color=MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(item.optString("sourceName"),modifier=Modifier.padding(vertical=8.dp))
@@ -54,13 +56,15 @@ fun WorkspaceScreen(onOpen: () -> Unit, onNew: () -> Unit) {
                     val active=withContext(Dispatchers.IO) { BuildStatusHelper.getCurrentState(context).isBuilding }
                     if(active) message="Wait for the current build" else runCatching { library.open(item);onOpen() }.onFailure { message=it.message ?: "Could not open project" };busy=false
                 }},enabled=!busy) { Text("Open / update") }
-                Row {
+                var actions by remember(item.optString("id")) { mutableStateOf(false) }
+                TextButton(onClick={actions=!actions}) { Text(if(actions) "Close actions" else "More actions") }
+                if(actions) Row {
                     TextButton(onClick={perform { library.duplicate(item); "Copy created. For native projects also change the package inside the source." }},enabled=!busy) { Text("Duplicate") }
                     TextButton(onClick={ backup=item; export.launch("studio-project.zip") },enabled=!busy) { Text("Backup ZIP") }
                 }
             }
         }
-        Text("STARTER TEMPLATES",style=MaterialTheme.typography.labelLarge)
+        Text("Quick starts",style=MaterialTheme.typography.titleMedium)
         listOf("Notes","Photo gallery","Audio player","Product catalogue").forEach { name ->
             OutlinedButton(onClick={
                 busy=true
