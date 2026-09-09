@@ -80,7 +80,7 @@ import sys
 
 value = sys.argv[1]
 
-match = re.search(
+match = re.fullmatch(
     r'[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)+',
     value
 )
@@ -88,7 +88,7 @@ match = re.search(
 if match:
     package = match.group(0)
 else:
-    package = "com.generated.webapp"
+    sys.exit("Invalid package ID: expected com.example.myapp")
 
 print(package.lower())
 PY

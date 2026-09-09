@@ -117,6 +117,8 @@ fun BuilderScreen(
         mutableStateOf(false)
     }
 
+    var showLastBuild by remember { mutableStateOf(true) }
+
     var generatedApk by remember {
         mutableStateOf<File?>(null)
     }
@@ -146,9 +148,9 @@ fun BuilderScreen(
                 }
 
             isBuilding = state.isBuilding
-            buildStatus = state.status
+            if (showLastBuild) buildStatus = state.status
 
-            if (state.apkFile != null) {
+            if (showLastBuild && state.apkFile != null) {
                 generatedApk = state.apkFile
             }
 
@@ -249,7 +251,8 @@ fun BuilderScreen(
                     iconUri = iconUri?.toString()
                 )
 
-                generatedApk = null
+                showLastBuild = false
+            generatedApk = null
                 previewUrl = null
                 previewVisible = false
 
@@ -415,7 +418,8 @@ fun BuilderScreen(
                         codeProjectName
                     )
 
-                    generatedApk = null
+                    showLastBuild = false
+            generatedApk = null
 
                     previewUrl = null
 
@@ -723,8 +727,10 @@ fun BuilderScreen(
 
                         saveSession()
 
-                        generatedApk = null
+                        showLastBuild = false
+            generatedApk = null
 
+                        showLastBuild = true
                         isBuilding = true
 
                         buildStatus =

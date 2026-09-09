@@ -399,6 +399,7 @@ public class MainActivity extends Activity {
             requestCode ==
             MEDIA_PERMISSION_REQUEST
         ) {
+            finishPermissionRequests();
 
             runJs(
                 "window.dispatchEvent(" +
