@@ -41,3 +41,42 @@ jobs:
           name: universal-build-studio-apk
           path: app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+
+  publish:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with: {name: universal-build-studio-apk, path: output}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - name: Sign with configured private key when available
+        env:
+          KEYSTORE: ${{ secrets.APK_KEYSTORE_BASE64 }}
+          STORE_PASS: ${{ secrets.APK_STORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.APK_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.APK_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [[ -n "$KEYSTORE" && -n "$STORE_PASS" && -n "$KEY_ALIAS" && -n "$KEY_PASS" ]]; then
+            umask 077
+            trap 'rm -f "$RUNNER_TEMP/release.jks"' EXIT
+            printf '%s' "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/release.jks"
+            TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+            "$TOOLS/zipalign" -p -f 4 output/app-debug.apk "$RUNNER_TEMP/aligned.apk"
+            "$TOOLS/apksigner" sign --ks "$RUNNER_TEMP/release.jks" --ks-key-alias "$KEY_ALIAS" --ks-pass env:STORE_PASS --key-pass env:KEY_PASS --out output/studio.apk "$RUNNER_TEMP/aligned.apk"
+            "$TOOLS/apksigner" verify output/studio.apk
+            echo 'Signed with configured release key.' > notes.txt
+          else
+            cp output/app-debug.apk output/studio.apk
+            echo 'Test/debug signature: updating an existing installation is not guaranteed until a permanent signing key is configured.' > notes.txt
+          fi
+      - name: Publish downloadable builder
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: gh release create "studio-build-$GITHUB_RUN_NUMBER" output/studio.apk --target "$COMMIT_SHA" --title "Universal Build Studio · build $GITHUB_RUN_NUMBER" --notes-file notes.txt --latest

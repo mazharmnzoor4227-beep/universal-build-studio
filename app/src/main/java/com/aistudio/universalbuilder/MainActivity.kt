@@ -7,6 +7,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.FolderOpen
 import androidx.compose.material.icons.outlined.Build
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
@@ -45,7 +46,7 @@ fun UniversalBuildStudioApp() {
         }
 
     var selectedTab by rememberSaveable {
-        mutableStateOf("Builder")
+        mutableStateOf("Projects")
     }
 
     var appName by remember {
@@ -78,13 +79,17 @@ fun UniversalBuildStudioApp() {
         BackHandler(enabled = selectedTab != "Builder") { selectedTab = "Builder" }
         Scaffold(bottomBar = {
             NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                listOf(Triple("Builder", "Build", Icons.Outlined.Build), Triple("History", "History", Icons.Outlined.History), Triple("GitHub", "Settings", Icons.Outlined.Settings)).forEach { (key, label, icon) ->
+                listOf(Triple("Projects", "Projects", Icons.Outlined.FolderOpen), Triple("Builder", "Build", Icons.Outlined.Build), Triple("History", "History", Icons.Outlined.History), Triple("GitHub", "Settings", Icons.Outlined.Settings)).forEach { (key, label, icon) ->
                     NavigationBarItem(selected = selectedTab == key, onClick = { selectedTab = key }, icon = { Icon(icon, contentDescription = null) }, label = { Text(label) })
                 }
             }
         }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding)) {
         when (selectedTab) {
+            "Projects" -> WorkspaceScreen(onOpen = {
+                val fresh=sessionStore.load(); appName=fresh.appName; packageName=fresh.packageName; projectName=fresh.projectName; iconSelected=fresh.iconUri.isNotBlank(); projectRevision++; selectedTab="Builder"
+            }, onNew = { selectedTab="Builder" })
+
 
             "Builder" -> {
 

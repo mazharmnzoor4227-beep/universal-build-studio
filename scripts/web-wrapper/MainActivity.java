@@ -48,6 +48,7 @@ public class MainActivity extends Activity {
 
 
     private WebView webView;
+    private android.view.View splashView;
 
     private ValueCallback<Uri[]>
         fileCallback;
@@ -141,6 +142,14 @@ public class MainActivity extends Activity {
         } catch (Exception ignored) { }
         configureDisplayMode();
         configureWebView();
+        if (option("splash")) {
+            android.widget.LinearLayout splash = new android.widget.LinearLayout(this);
+            splash.setOrientation(android.widget.LinearLayout.VERTICAL); splash.setGravity(android.view.Gravity.CENTER); splash.setBackgroundColor(android.graphics.Color.WHITE);
+            android.widget.ImageView icon = new android.widget.ImageView(this); icon.setImageDrawable(getApplicationInfo().loadIcon(getPackageManager())); splash.addView(icon,new android.widget.LinearLayout.LayoutParams(192,192));
+            android.widget.TextView title = new android.widget.TextView(this); title.setText(getApplicationInfo().loadLabel(getPackageManager())); title.setTextColor(android.graphics.Color.BLACK); title.setTextSize(22); splash.addView(title);
+            splashView=splash; addContentView(splash,new android.view.ViewGroup.LayoutParams(-1,-1));
+            webView.postDelayed(() -> { if(splashView!=null) { ((android.view.ViewGroup)splashView.getParent()).removeView(splashView); splashView=null; } }, 2500);
+        }
 
         registerMediaReceiver();
 

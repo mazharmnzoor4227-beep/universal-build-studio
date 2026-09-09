@@ -1,6 +1,9 @@
 package com.aistudio.universalbuilder
 
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.net.Uri
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -20,6 +23,8 @@ import kotlinx.coroutines.withContext
 fun HistoryScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var report by remember { mutableStateOf("") }
+    var loadingReport by remember { mutableStateOf(false) }
     var entries by remember { mutableStateOf(BuildRecords(context).all()) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         StudioHeader("Your builds", "Pick up where you left off.")
@@ -29,6 +34,10 @@ fun HistoryScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(8.dp))
             Text("Build a project to see its progress and downloads here.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             TextButton(onClick = onBack) { Text("Create an app") }
+        }
+        if(report.isNotBlank()) BuilderCard("Build diagnostics") {
+            Text(report.take(24000),style=MaterialTheme.typography.bodySmall)
+            TextButton(onClick={ (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Build diagnostics",report)) }) { Text("Copy diagnostics") }
         }
         entries.forEach { item ->
             Card(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -41,6 +50,11 @@ fun HistoryScreen(onBack: () -> Unit) {
                         withContext(Dispatchers.IO) { BackgroundBuildManager.resume(context, item.getString("id")) }
                         onBack()
                     } }) { Text("Resume / check download") }
+                    TextButton(onClick = {
+                        val report="App: ${item.optString("name")}\nPackage: ${item.optString("package")}\nStatus: ${item.optString("status")}\nRun: ${item.optString("url")}"
+                        (context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager).setPrimaryClip(ClipData.newPlainText("Build report",report))
+                    }) { Text("Copy error / build report") }
+                    TextButton(onClick={loadingReport=true;scope.launch { report=withContext(Dispatchers.IO) { runCatching { StudioTools.logs(context,item) }.getOrElse { it.message ?: "Could not load logs" } };loadingReport=false }},enabled=!loadingReport) { Text("Get error details") }
                     val url = item.optString("url")
                     if (url.startsWith("https://github.com/")) TextButton(onClick = {
                         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))

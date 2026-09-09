@@ -9,6 +9,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 
@@ -19,6 +20,10 @@ fun CodePasteCard(
     onUseCode: () -> Unit
 ) {
 
+    var previous by remember { mutableStateOf("") }
+    var search by remember { mutableStateOf("") }
+    var replacement by remember { mutableStateOf("") }
+    var toolsVisible by remember { mutableStateOf(false) }
     var showPreview by remember {
         mutableStateOf(false)
     }
@@ -36,9 +41,20 @@ fun CodePasteCard(
             Modifier.height(10.dp)
         )
 
+        Row {
+            TextButton(onClick={ toolsVisible=!toolsVisible }) { Text("Find / replace") }
+            TextButton(onClick={ val current=htmlCode; onCodeChange(previous); previous=current },enabled=previous!=htmlCode) { Text("Undo / redo") }
+        }
+        if(toolsVisible) {
+            OutlinedTextField(value=search,onValueChange={search=it},label={Text("Find")},modifier=Modifier.fillMaxWidth())
+            OutlinedTextField(value=replacement,onValueChange={replacement=it},label={Text("Replace with")},modifier=Modifier.fillMaxWidth())
+            TextButton(onClick={previous=htmlCode;onCodeChange(htmlCode.replace(search,replacement))},enabled=search.isNotEmpty()) { Text("Replace all") }
+        }
+        Text("${htmlCode.lines().size} lines • ${htmlCode.length} characters",style=MaterialTheme.typography.labelSmall)
         OutlinedTextField(
             value = htmlCode,
-            onValueChange = onCodeChange,
+            textStyle=MaterialTheme.typography.bodySmall.copy(fontFamily=FontFamily.Monospace),
+            onValueChange = { previous=htmlCode; onCodeChange(it) },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp),

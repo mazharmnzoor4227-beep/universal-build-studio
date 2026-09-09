@@ -74,6 +74,8 @@ fun GitHubScreen(
     ) {
 
         StudioHeader("Workspace settings", "Connect once. Build whenever you’re ready.")
+        StudioUtilityCard()
+        Spacer(Modifier.height(16.dp))
         SettingsCard {
 
             OutlinedTextField(

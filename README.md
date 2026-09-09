@@ -89,3 +89,15 @@ Generated web APKs explicitly show system bars with fullscreen off and apply sys
 
 UI reference: https://m3.material.io/foundations/layout/grids-spacing/spacing
 Display reference: https://developer.android.com/develop/ui/views/layout/edge-to-edge
+
+## Version 4.0 workspace
+- Projects stores source/icon snapshots locally; open keeps the package ID for rebuilding. Save draft creates a new snapshot. Duplicate gives web projects a new ID; native project IDs must also be changed inside their source.
+- ZIP backup/restore includes source, icon and options, excludes tokens and signing keys, and bounds extraction with an exact file allowlist.
+- Preflight checks package IDs, unsafe ZIP paths, expanded size and project markers before upload. Dependency/code errors still require compilation.
+- HTML editor supports find/replace and single-step undo/redo. Reading index.html from a multifile ZIP does not preserve sibling assets when using pasted code; edit that complete ZIP externally instead.
+- Diagnostics fetches matching error lines from completed GitHub run logs. Full logs remain available on GitHub.
+- Storage cleanup preserves selected source, project snapshots and exported APKs.
+- Basic templates: local notes, selected-photo gallery, foreground audio player and editable local product catalogue.
+- Icon tools offer centered square crop and white-background fit. Optional generated launch screen shows app name/icon for up to 2.5 seconds.
+- Builder releases publish a downloadable APK after successful main builds. The update checker opens the latest published release; it does not silently install it.
+- Both signing workflows accept the same four private key secrets documented above. No signing key is generated, published in source, or recovered from an earlier debug APK. Stable updates remain dependent on configuring/backing up a permanent private key; existing signatures may differ.

@@ -28,6 +28,7 @@ class BuildController(private val context: Context) {
         }
         try {
             if (!record.optBoolean("uploaded")) {
+                StudioTools.validate(context, BuilderSession(request.appName,request.packageName,request.projectName,request.projectUri.toString(),request.iconUri?.toString() ?: ""))
                 save("Uploading project")
                 val tag = "builder-$requestId"
                 val normalized = ProjectImport.normalize(context, request.projectUri, request.projectName)

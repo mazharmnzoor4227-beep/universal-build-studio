@@ -366,6 +366,24 @@ fun BuilderScreen(
         Text("Clears this draft and its options. Saved APKs, build history and your connection stay available.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 8.dp, bottom = 20.dp))
         Text("HTML  /  React & Vite  /  Android  /  Flutter", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.height(20.dp))
+        var validationMessage by remember { mutableStateOf("") }
+        var validating by remember { mutableStateOf(false) }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                validating=true
+                scope.launch {
+                    validationMessage=withContext(Dispatchers.IO) { runCatching { StudioTools.validate(context) }.getOrElse { it.message ?: "Validation failed" } }; validating=false
+                }
+            }, enabled=!isBuilding && !validating, modifier=Modifier.weight(1f)) { Text("Check source") }
+            OutlinedButton(onClick = {
+                validating=true
+                scope.launch {
+                    validationMessage=withContext(Dispatchers.IO) { runCatching { ProjectLibrary(context).saveDraft(); "Snapshot saved in Projects" }.getOrElse { it.message ?: "Save failed" } }; validating=false
+                }
+            }, enabled=!isBuilding && !validating, modifier=Modifier.weight(1f)) { Text("Save project") }
+        }
+        if(validating) LinearProgressIndicator(Modifier.fillMaxWidth())
+        if(validationMessage.isNotBlank()) Text(validationMessage, modifier=Modifier.padding(vertical=12.dp), style=MaterialTheme.typography.bodySmall)
         ProjectInfoCard(
             projectName = projectName,
             projectType = projectType,
@@ -386,6 +404,10 @@ fun BuilderScreen(
             Text(if (showCode) "Close code editor" else "Or paste HTML code")
         }
         if (showCode) {
+        TextButton(onClick={scope.launch {
+            runCatching { withContext(Dispatchers.IO) { StudioTools.html(context) } }.onSuccess { htmlCode=it }.onFailure { validationMessage=it.message ?: "Cannot load HTML" }
+        }},enabled=!isBuilding) { Text("Read selected HTML into editor") }
+        Text("Using edited HTML creates a self-contained project. For ZIPs with separate CSS, scripts or assets, edit the original project instead.",style=MaterialTheme.typography.bodySmall)
         CodePasteCard(
             htmlCode = htmlCode,
 
@@ -478,12 +500,22 @@ fun BuilderScreen(
             Modifier.height(14.dp)
         )
 
+        if(iconUri!=null) {
+            Row(horizontalArrangement=Arrangement.spacedBy(8.dp)) {
+                listOf("Crop square" to true,"Fit white" to false).forEach { (label,crop) ->
+                    TextButton(onClick={scope.launch {
+                        runCatching { withContext(Dispatchers.IO) { IconEditor.create(context,iconUri!!,crop,false) } }.onSuccess { iconUri=it;saveSession() }.onFailure { validationMessage=it.message ?: "Icon edit failed" }
+                    }},enabled=!isBuilding) { Text(label) }
+                }
+            }
+        }
         BuilderCard(
             title = "App details"
         ) {
 
             OutlinedTextField(
                 value = appName,
+                enabled = !isBuilding,
 
                 onValueChange = {
 
@@ -516,6 +548,7 @@ fun BuilderScreen(
 
             OutlinedTextField(
                 value = packageName,
+                enabled = !isBuilding,
 
                 onValueChange = {
 
@@ -556,7 +589,7 @@ fun BuilderScreen(
                 val groups = listOf(
                     "Capture & media" to listOf(Triple("camera", "Camera", "Take photos and use web camera capture"), Triple("microphone", "Microphone", "Record audio from your app"), Triple("library", "Photos, videos & audio", "Read media after Android approval"), Triple("media", "Background audio", "Native playback and media controls")),
                     "Location & device" to listOf(Triple("location", "Foreground location", "Web geolocation while the app is open"), Triple("notifications", "Local notifications", "Show alerts through NativeDevice"), Triple("vibration", "Vibration", "Haptic feedback through NativeDevice"), Triple("network", "Connection status", "Check connectivity through NativeDevice")),
-                    "Display" to listOf(Triple("landscape", "Landscape layout", "Open the generated app horizontally"), Triple("fullscreen", "Fullscreen", "On: immersive view. Off: show system bars"))
+                    "Display" to listOf(Triple("landscape", "Landscape layout", "Open the generated app horizontally"), Triple("fullscreen", "Fullscreen", "On: immersive view. Off: show system bars"), Triple("splash", "Launch screen", "Show your name and icon while the page loads"))
                 )
                 groups.forEach { (heading, items) ->
                     Text(heading, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
