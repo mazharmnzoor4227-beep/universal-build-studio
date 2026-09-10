@@ -16,6 +16,20 @@ jobs:
         with: {distribution: temurin, java-version: '17'}
       - uses: gradle/actions/setup-gradle@v4
         with: {gradle-version: '8.11.1'}
+      - name: Bundle photo engine with dependency licenses
+        run: |
+          python -m pip download --only-binary=:all: --platform any --python-version 3.11 --implementation py --abi none --dest /tmp/gallery-wheels gallery-dl==1.32.11 requests==2.32.5 urllib3==2.5.0 certifi==2025.8.3 charset-normalizer==3.4.3 idna==3.10
+          python - <<'PYTHON'
+          import zipfile,pathlib
+          dest=pathlib.Path('/tmp/gallery-packages');dest.mkdir()
+          for wheel in pathlib.Path('/tmp/gallery-wheels').glob('*.whl'):
+              with zipfile.ZipFile(wheel) as z:z.extractall(dest)
+          pathlib.Path('media-pocket/app/src/main/assets').mkdir(parents=True,exist_ok=True)
+          with zipfile.ZipFile('media-pocket/app/src/main/assets/gallery.zip','w',zipfile.ZIP_DEFLATED) as z:
+              for f in dest.rglob('*'):
+                  if f.is_file():z.write(f,f.relative_to(dest))
+          PYTHON
+          PYTHONPATH=/tmp/gallery-packages python -m gallery_dl --version
       - name: Test and build
         working-directory: media-pocket
         run: gradle :app:testDebugUnitTest :app:assembleDebug --stacktrace
@@ -34,4 +48,4 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           cp media-pocket/app/build/outputs/apk/debug/app-debug.apk media-pocket.apk
-          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ ARM64. Debug-signed test build. Public video links use yt-dlp; photos require public structured image metadata. Source and license notices included. No guarantee of every platform/link or watermark-free source. Device runtime validation pending." --latest=false
+          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ ARM64. Debug-signed test build. Public video links use yt-dlp; photos use gallery-dl with public image metadata fallback. Source and license notices included. No guarantee of every platform/link or watermark-free source. Device runtime validation pending." --latest=false

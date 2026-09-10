@@ -32,7 +32,9 @@ class MainActivity:ComponentActivity() {
   var error by remember {mutableStateOf("")};var tab by rememberSaveable {mutableStateOf(0)}
   val manager=remember {WorkManager.getInstance(this)}
   val works by manager.getWorkInfosForUniqueWorkLiveData("download").observeAsState(emptyList())
-  val work=works.maxByOrNull {it.generation};val active=works.any {!it.state.isFinished}
+  val prefs=remember {getSharedPreferences("downloads",MODE_PRIVATE)}
+  var currentId by rememberSaveable {mutableStateOf(prefs.getString("currentWork", "") ?: "")}
+  val work=works.firstOrNull {!it.state.isFinished} ?: works.firstOrNull {it.id.toString()==currentId};val active=works.any {!it.state.isFinished}
   var history by remember {mutableStateOf(JSONArray())}
   LaunchedEffect(works,tab) {history=JSONArray(getSharedPreferences("downloads",MODE_PRIVATE).getString("items","[]"))}
   val notifications=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
@@ -41,7 +43,7 @@ class MainActivity:ComponentActivity() {
     val url=if(update)"" else LinkRules.parse(link)
     if(android.os.Build.VERSION.SDK_INT>=33)notifications.launch(android.Manifest.permission.POST_NOTIFICATIONS)
     val request=OneTimeWorkRequestBuilder<DownloadWorker>().setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build()).setInputData(workDataOf("url" to url,"photos" to photo,"height" to quality,"update" to update)).build()
-    manager.enqueueUniqueWork("download",ExistingWorkPolicy.KEEP,request);error=""
+    currentId=request.id.toString();prefs.edit().putString("currentWork",currentId).apply();manager.enqueueUniqueWork("download",ExistingWorkPolicy.KEEP,request);error=""
    } catch(e:Exception) {error=e.message ?: "Invalid link"}
   }
   MaterialTheme(colorScheme=darkColorScheme(primary=Color.White,onPrimary=Color.Black,background=Color(0xFF101014),surface=Color(0xFF1C1C22))) {
@@ -56,7 +58,7 @@ class MainActivity:ComponentActivity() {
        TextButton(onClick={val clipboard=getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager;link=clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@MainActivity)?.toString() ?: ""},enabled=!active){Text("Paste from clipboard")}
        Row(horizontalArrangement=Arrangement.spacedBy(8.dp)){FilterChip(selected=!photo,onClick={photo=false},label={Text("Video")},enabled=!active);FilterChip(selected=photo,onClick={photo=true},label={Text("Photos")},enabled=!active)}
        if(!photo)Row(horizontalArrangement=Arrangement.spacedBy(6.dp)){listOf(480,720,1080).forEach {height->FilterChip(selected=quality==height,onClick={quality=height},label={Text("${height}p")},enabled=!active)}}
-       Text(if(photo)"Finds original images exposed by public pages. Some albums and photo posts are not supported." else "Quality is a preference; availability depends on the source. Original streams are used when available. Existing creator marks are kept.",style=MaterialTheme.typography.bodySmall)
+       Text(if(photo)"Finds public photos and supported albums, up to 30 images. Availability varies by platform." else "Quality is a preference; availability depends on the source. Original streams are used when available. Existing creator marks are kept.",style=MaterialTheme.typography.bodySmall)
        Button(onClick={start()},enabled=!active && link.isNotBlank(),modifier=Modifier.fillMaxWidth().height(54.dp)){Text(if(active)"Working…" else "Download to Gallery")}
       }}
       if(active){LinearProgressIndicator(Modifier.fillMaxWidth());TextButton(onClick={manager.cancelUniqueWork("download")}){Text("Cancel")}}

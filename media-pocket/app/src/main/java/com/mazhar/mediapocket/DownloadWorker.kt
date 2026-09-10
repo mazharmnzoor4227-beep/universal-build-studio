@@ -14,7 +14,7 @@ import java.io.File
 class DownloadWorker(context:Context,params:WorkerParameters):CoroutineWorker(context,params) {
  override suspend fun doWork():Result=withContext(Dispatchers.IO) {
   val dir=File(applicationContext.cacheDir,id.toString()).apply { mkdirs() }
-  val monitor=CoroutineScope(Dispatchers.IO).launch { while(isActive) { if(isStopped) {YoutubeDL.destroyProcessById(id.toString());break};delay(400) } }
+  val monitor=CoroutineScope(Dispatchers.IO).launch { while(isActive) { if(isStopped) {YoutubeDL.destroyProcessById(id.toString());PhotoEngine.cancel(id.toString());break};delay(400) } }
   try {
    setForeground(notification())
    MediaEngine.initialize(applicationContext)
@@ -24,7 +24,7 @@ class DownloadWorker(context:Context,params:WorkerParameters):CoroutineWorker(co
    }
    val url=LinkRules.parse(inputData.getString("url") ?: "")
    if(inputData.getBoolean("photos",false)) {
-    val images=MediaEngine.images(url)
+    val images=runCatching { PhotoEngine.images(applicationContext,url,id.toString()) }.getOrElse { MediaEngine.images(url) }
     images.forEachIndexed { index,image ->
      currentCoroutineContext().ensureActive();val file=File(dir,"photo-$index")
      val mime=MediaEngine.fetchImage(image,file);val saved=MediaEngine.publish(applicationContext,file,mime)
@@ -47,7 +47,7 @@ class DownloadWorker(context:Context,params:WorkerParameters):CoroutineWorker(co
    }
   } catch(e:CancellationException) { throw e }
   catch(e:Exception) { Result.failure(workDataOf("message" to (e.message ?: "Download failed").takeLast(1800))) }
-  finally { monitor.cancel();YoutubeDL.destroyProcessById(id.toString());dir.deleteRecursively() }
+  finally { monitor.cancel();PhotoEngine.cancel(id.toString());YoutubeDL.destroyProcessById(id.toString());dir.deleteRecursively() }
  }
  private fun record(title:String,uri:String,mime:String) {
   val prefs=applicationContext.getSharedPreferences("downloads",Context.MODE_PRIVATE)
