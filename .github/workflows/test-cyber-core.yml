@@ -1,0 +1,36 @@
+name: Verify Cyber Core
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['cyber-core/**', '.github/workflows/test-cyber-core.yml']
+permissions:
+  contents: write
+jobs:
+  browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm install --no-audit --no-fund
+        working-directory: cyber-core
+      - run: npx playwright install --with-deps chromium
+        working-directory: cyber-core
+      - run: npm test
+        working-directory: cyber-core
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cyber-core-browser-checks
+          path: |
+            cyber-core/*preview.png
+            cyber-core/index.html
+      - name: Publish verified HTML
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: gh release create "cyber-core-$GITHUB_RUN_NUMBER" cyber-core/index.html cyber-core/terminal-preview.png cyber-core/call-preview.png --target "$SHA" --title "Cyber Core web preview $GITHUB_RUN_NUMBER" --notes "Single-file browser app. Browser fixture tests passed. Real provider credentials, Urdu speech, native WebView voice and user PAT build flow still require runtime validation." --latest=false
