@@ -1,0 +1,51 @@
+name: Fetch DeepSeek Share
+
+on:
+  push:
+    branches:
+      - tmp-deepseek-import-67b000
+    paths:
+      - .github/workflows/fetch-deepseek-share.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch public DeepSeek share JSON
+        shell: bash
+        run: |
+          set -euo pipefail
+          SHARE_ID='67b000y4o6fi8dnhcx'
+          URL="https://chat.deepseek.com/api/v0/share/content?share_id=${SHARE_ID}"
+          curl --fail-with-body --location --retry 3 --retry-delay 2 \
+            -H 'Accept: application/json' \
+            -H "Referer: https://chat.deepseek.com/share/${SHARE_ID}" \
+            -H 'User-Agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/140 Safari/537.36' \
+            -H 'X-Client-Platform: web' \
+            -H 'X-Client-Version: 1.0.0-always' \
+            -H 'X-Client-Locale: en-US' \
+            "$URL" -o deepseek-share.json
+          python - <<'PY'
+          import json
+          p='deepseek-share.json'
+          data=json.load(open(p,encoding='utf-8'))
+          print(json.dumps(data, ensure_ascii=False)[:4000])
+          if data.get('code') != 0:
+              raise SystemExit(f"DeepSeek outer error: {data.get('msg')}")
+          inner=data.get('data') or {}
+          if inner.get('biz_code') != 0:
+              raise SystemExit(f"DeepSeek business error: {inner.get('biz_msg')}")
+          msgs=((inner.get('biz_data') or {}).get('messages') or [])
+          print(f'Fetched {len(msgs)} messages')
+          PY
+      - name: Upload share JSON
+        uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-share-67b000
+          path: deepseek-share.json
+          if-no-files-found: error
+          retention-days: 1
