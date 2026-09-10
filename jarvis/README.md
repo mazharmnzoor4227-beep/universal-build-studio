@@ -10,7 +10,9 @@ Personal work assistant, Android 10+, Java 17 / Gradle 8.11.1 / SDK 35.
 - GitHub dispatch and artifact download for web-app APKs (45 KB HTML limit), fixed template workflow, 1-day artifact retention. Requires user-provided GitHub token with Actions read/write and the workflow in that repo. Generated HTML is packaged as an asset, never executed on the CI host. Saved APKs stay in Downloads/Jarvis.
 
 ## Current limits
-Not unrestricted native app creation, autonomous arbitrary tool execution, live web search, Shopify publishing, full-duplex realtime voice or universal image generation. Model prose is not proof an action was executed. Native workspaces, image generation adapters, cloud hosting and direct store connectors are separate work.
+Image generation uses an explicit image-model ID with a Gemini-native or Images-compatible connection and saves a decoded image to Gallery. This may consume paid credits and requires model access.
+
+Not unrestricted native app creation, autonomous arbitrary tool execution, live web search, Shopify publishing, full-duplex realtime voice or universal image generation. Model prose is not proof an action was executed. Native workspaces, additional image generation adapters, cloud hosting and direct store connectors are separate work.
 Voice/provider/billing behavior must be verified on the user's phone and actual accounts. CI verifies compilation, protocol transformations, response parsing and builds the generated-app template. No claim of live API validation without credentials.
 Free quotas are provider-defined and may change. OpenCode Zen includes paid models; do not assume every model is free. Connections keep projects when switching, but context is sent to the newly selected provider. Cloud AI requires internet.
 Debug signing is for testing; CI runners may produce different debug keys. Establish a private stable signing key before relying on install-over updates or distribution. Do not delete an installed copy to update without exporting its work first.

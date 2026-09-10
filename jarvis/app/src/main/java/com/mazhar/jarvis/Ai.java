@@ -30,7 +30,7 @@ final class Ai {
   if(type.equals("messages"))append(s,j.getJSONArray("content"),"text");
   if(type.equals("gemini"))append(s,j.getJSONArray("candidates").getJSONObject(0).getJSONObject("content").getJSONArray("parts"),"text");
   if(type.equals("responses")){JSONArray a=j.getJSONArray("output");for(int i=0;i<a.length();i++){JSONArray c=a.getJSONObject(i).optJSONArray("content");if(c!=null)append(s,c,"text");}}
-  if(s.toString().isBlank())throw new Exception("No text returned. Check model support or refusal details in the provider console.");return s.toString();
+  if(s.toString().trim().isEmpty())throw new Exception("No text returned. Check model support or refusal details in the provider console.");return s.toString();
  }
  static void append(StringBuilder s,JSONArray a,String field)throws Exception{for(int i=0;i<a.length();i++){JSONObject o=a.getJSONObject(i);if(!o.optBoolean("thought",false))s.append(o.optString(field,""));}}
  static String html(String text)throws Exception {int start=text.toLowerCase().indexOf("<!doctype html");if(start<0)start=text.toLowerCase().indexOf("<html");int end=text.toLowerCase().lastIndexOf("</html>");if(start<0||end<start)throw new Exception("Model did not return a complete HTML project. Ask it to finish the file.");return text.substring(start,end+7);}
