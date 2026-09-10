@@ -10,3 +10,8 @@ Limitations: browser/WebView speech and Urdu voice support vary. A native speech
 Build modal uploads only the generated project, package.json, Capacitor config and workflow, never the agent's key or history. Uses pinned Capacitor 8.0.0 / Node 22 / Java 21. No repo overwrites. Token needs repository creation, Contents and Workflows access. Artifact download is through GitHub's authenticated Actions page. Minute/storage limits apply. Debug signing is for tests, not reliable install-over updates.
 
 Validation: browser fixtures test simulated model discovery, successful chat, HTML preview, HTTP 429 recovery and unavailable recognition. These are not live provider tests. API-account quota, real Urdu voice and GitHub PAT repository creation require actual account/device validation. Do not label the result bug-free or production-certified.
+
+## Android Cyber Core
+`android-app` wraps the same interface in a separate `com.mazhar.cybercore` application. Build Cyber Core APK publishes an installable personal-test debug APK and source archive. No API credentials are embedded. It does not replace the existing Jarvis or builder modules.
+
+The trusted top-level app has a restricted native message bridge for Android speech recognition, Urdu system TTS, HTTPS requests to the three supported AI providers and GitHub, and Downloads/CyberCore text exports. Opaque generated preview frames cannot use this bridge. Microphone access requires permission; Urdu speech requires installed speech services. Missing services report errors without terminating the app. Conversation is turn-taking while the app is foreground, not a realtime full-duplex calling service. Device/API runtime validation is still needed.

@@ -1,0 +1,38 @@
+name: Build Cyber Core APK
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['cyber-core/index.html', 'cyber-core/android-app/**', '.github/workflows/build-cyber-apk.yml']
+permissions:
+  contents: write
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - name: Package the current interface
+        run: |
+          mkdir -p cyber-core/android-app/app/src/main/assets
+          cp cyber-core/index.html cyber-core/android-app/app/src/main/assets/index.html
+      - name: Compile APK
+        working-directory: cyber-core/android-app
+        run: gradle assembleDebug --no-daemon
+      - name: Prepare download
+        run: |
+          cp cyber-core/android-app/app/build/outputs/apk/debug/app-debug.apk cyber-core.apk
+          zip -r cyber-core-source.zip cyber-core/index.html cyber-core/android-app -x '*/build/*' '*/.gradle/*'
+      - uses: actions/upload-artifact@v4
+        with: {name: cyber-core-apk, path: cyber-core.apk, retention-days: 1}
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: gh release create "cyber-apk-$GITHUB_RUN_NUMBER" cyber-core.apk cyber-core-source.zip --target "$SHA" --title "Cyber Core Android $GITHUB_RUN_NUMBER" --notes "Standalone Android app with native speech recognition, Urdu system TTS, restricted native networking and file export. Requires working provider credentials and installed speech services. Build verified; live phone/API testing remains necessary. Debug APK for personal testing." --latest=false
