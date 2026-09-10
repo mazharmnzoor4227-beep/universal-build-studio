@@ -1,0 +1,35 @@
+name: Build DeepSeek Agent APK
+
+on:
+  push:
+    branches:
+      - tmp-deepseek-import-67b000
+    paths:
+      - 'deepseek-agent-android/**'
+      - '.github/workflows/build-deepseek-agent.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.11.1'
+      - name: Build debug APK
+        working-directory: deepseek-agent-android
+        run: gradle :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deepseek-agent-apk
+          path: deepseek-agent-android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 7
