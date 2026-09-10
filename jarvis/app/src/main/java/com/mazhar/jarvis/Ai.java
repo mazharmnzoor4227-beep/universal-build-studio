@@ -21,7 +21,7 @@ final class Ai {
   String path=type.equals("responses")?"/responses":type.equals("messages")?"/messages":type.equals("gemini")?"/models/"+model+":generateContent":"/chat/completions";
   Request.Builder r=new Request.Builder().url(base+path).post(RequestBody.create(payload(p,history,system,image).toString(),MediaType.get("application/json")));
   if(type.equals("messages"))r.header("x-api-key",p.getString("key")).header("anthropic-version","2023-06-01");else if(type.equals("gemini"))r.header("x-goog-api-key",p.getString("key"));else r.header("Authorization","Bearer "+p.getString("key"));
-  try(Response response=HTTP.newCall(r.build()).execute()){if(!response.isSuccessful())throw new Exception("API HTTP "+response.code()+": "+hint(response.code()));JSONObject json=new JSONObject(response.body().string());return extract(type,json);}
+  try(Response response=HTTP.newCall(r.build()).execute()){String raw=response.body()==null?"":response.body().string();if(!response.isSuccessful()){String detail=raw.replaceAll("\\s+"," ");if(detail.length()>260)detail=detail.substring(0,260);throw new Exception("API HTTP "+response.code()+": "+hint(response.code())+"\n"+detail);}JSONObject json=new JSONObject(raw);return extract(type,json);}
  }
  static String hint(int c){return c==401||c==403?"Check this provider's key and model access":c==429?"Rate limit or credits exhausted. Wait or select another saved provider.":c==404?"Check Base URL, API protocol and Model ID":"Provider request failed; retry or change connection";}
  static String extract(String type,JSONObject j)throws Exception {
