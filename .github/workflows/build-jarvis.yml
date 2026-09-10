@@ -1,0 +1,41 @@
+name: Build Jarvis
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['jarvis/**', '.github/workflows/build-jarvis.yml']
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - name: Test and build Jarvis
+        working-directory: jarvis
+        run: gradle :app:testDebugUnitTest :app:assembleDebug
+      - name: Verify generated app template
+        env:
+          PROJECT_HTML: PCFkb2N0eXBlIGh0bWw+PGh0bWw+PGJvZHk+SmFydmlzIHRlc3Q8L2JvZHk+PC9odG1sPg==
+          PROJECT_NAME: Jarvis template test
+          PROJECT_PACKAGE: com.mazhar.testapp
+        run: python jarvis/prepare_project.py
+      - name: Build generated app template
+        working-directory: generated
+        run: gradle :app:assembleDebug
+      - name: Package source
+        run: zip -r jarvis-source.zip jarvis .github/workflows/build-jarvis.yml .github/workflows/jarvis-project.yml -x '*/build/*' '*/.gradle/*'
+      - name: Publish APK
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: |
+          cp jarvis/app/build/outputs/apk/debug/app-debug.apk jarvis.apk
+          gh release create "jarvis-$GITHUB_RUN_NUMBER" jarvis.apk jarvis-source.zip --target "$SHA" --title "Jarvis preview $GITHUB_RUN_NUMBER" --notes "Android 10+. Urdu conversation requires an available Urdu speech and TTS service. Bring your own provider key/model. Four API protocols. Web-app generation and GitHub APK builds, not unrestricted native app creation. Device voice and live provider tests pending. Debug-signed preview." --latest=false

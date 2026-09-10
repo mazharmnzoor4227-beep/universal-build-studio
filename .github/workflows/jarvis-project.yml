@@ -1,0 +1,36 @@
+name: Jarvis Generated App
+run-name: Jarvis app ${{ inputs.ticket }}
+on:
+  workflow_dispatch:
+    inputs:
+      html: {description: 'Base64 HTML, maximum 45 KB decoded', required: true}
+      name: {description: 'App name', required: true}
+      package: {description: 'Application ID', required: true}
+      ticket: {description: 'Build request ID', required: true}
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with: {persist-credentials: false}
+      - uses: actions/setup-java@v4
+        with: {distribution: temurin, java-version: '17'}
+      - uses: gradle/actions/setup-gradle@v4
+        with: {gradle-version: '8.11.1'}
+      - name: Prepare fixed Android template
+        env:
+          PROJECT_HTML: ${{ inputs.html }}
+          PROJECT_NAME: ${{ inputs.name }}
+          PROJECT_PACKAGE: ${{ inputs.package }}
+        run: python jarvis/prepare_project.py
+      - name: Build APK
+        working-directory: generated
+        run: gradle :app:assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: generated-apk
+          path: generated/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 1
