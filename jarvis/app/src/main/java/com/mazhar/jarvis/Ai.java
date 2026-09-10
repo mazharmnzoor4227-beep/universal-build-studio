@@ -2,6 +2,7 @@ package com.mazhar.jarvis;
 import org.json.*;
 import okhttp3.*;
 import java.util.concurrent.TimeUnit;
+import java.util.Locale;
 final class Ai {
  static final OkHttpClient HTTP=new OkHttpClient.Builder().connectTimeout(25,TimeUnit.SECONDS).callTimeout(180,TimeUnit.SECONDS).followRedirects(false).build();
  static JSONObject obj(Object...v)throws JSONException {JSONObject o=new JSONObject();for(int i=0;i<v.length;i+=2)o.put((String)v[i],v[i+1]);return o;}
@@ -16,13 +17,14 @@ final class Ai {
   throw new Exception("Unsupported API protocol");
  }
  static String ask(JSONObject p,JSONArray history,String system,String image)throws Exception {
-  String type=p.optString("type","chat"),base=endpoint(p),model=p.getString("model");
+  String type=p.optString("type","chat"),base=endpoint(p),model=p.getString("model");if(type.equals("gemini")){try{model=discoverGeminiModel(p,base);p.put("model",model);}catch(Exception ignored){}}
   if(!model.matches("[a-zA-Z0-9_./:-]+"))throw new Exception("Invalid model ID");
   String path=type.equals("responses")?"/responses":type.equals("messages")?"/messages":type.equals("gemini")?"/models/"+model+":generateContent":"/chat/completions";
   Request.Builder r=new Request.Builder().url(base+path).post(RequestBody.create(payload(p,history,system,image).toString(),MediaType.get("application/json")));
   if(type.equals("messages"))r.header("x-api-key",p.getString("key")).header("anthropic-version","2023-06-01");else if(type.equals("gemini"))r.header("x-goog-api-key",p.getString("key"));else r.header("Authorization","Bearer "+p.getString("key"));
   try(Response response=HTTP.newCall(r.build()).execute()){String raw=response.body()==null?"":response.body().string();if(!response.isSuccessful()){String detail=raw.replaceAll("\\s+"," ");if(detail.length()>260)detail=detail.substring(0,260);throw new Exception("API HTTP "+response.code()+": "+hint(response.code())+"\n"+detail);}JSONObject json=new JSONObject(raw);return extract(type,json);}
  }
+ static String discoverGeminiModel(JSONObject p,String base)throws Exception {Request q=new Request.Builder().url(base+"/models").header("x-goog-api-key",p.getString("key")).get().build();try(Response r=HTTP.newCall(q).execute()){if(!r.isSuccessful())return p.getString("model");JSONObject j=new JSONObject(r.body().string());JSONArray list=j.optJSONArray("models");String fallback=p.getString("model");for(int i=0;i<list.length();i++){JSONObject m=list.getJSONObject(i);String n=m.optString("name").replaceFirst("^models/","");JSONArray methods=m.optJSONArray("supportedGenerationMethods");boolean can=false;if(methods!=null)for(int k=0;k<methods.length();k++)if(methods.optString(k).equals("generateContent"))can=true;if(can&&n.toLowerCase(Locale.ROOT).contains("flash")&&!n.toLowerCase(Locale.ROOT).contains("image"))return n;if(can&&fallback.isEmpty())fallback=n;}return fallback;}}
  static String hint(int c){return c==401||c==403?"Check this provider's key and model access":c==429?"Rate limit or credits exhausted. Wait or select another saved provider.":c==404?"Check Base URL, API protocol and Model ID":"Provider request failed; retry or change connection";}
  static String extract(String type,JSONObject j)throws Exception {
   StringBuilder s=new StringBuilder();
