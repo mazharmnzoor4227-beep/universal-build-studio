@@ -6,7 +6,7 @@ Paste/share link input; background worker; quality preference; cancellation; Gal
 
 Video extraction uses youtubedl-android 0.18.1 / yt-dlp and FFmpeg. Supports routes for Instagram, Facebook, TikTok, Pinterest and YouTube, but site availability requires testing with actual links and changes over time. No cookies, authentication, private access or age-gate bypass. No added watermark, and no removal of creator marks. A watermark-free stream is not always available.
 
-Photo extraction first uses gallery-dl 1.32.11 bundled with its dependencies, then tries public JSON-LD ImageObject content URLs. It does not substitute video thumbnails. Instagram carousels, TikTok slideshows and pages without exposed image metadata are not guaranteed; the app reports unsupported rather than saving a thumbnail as the original. This is a material limitation, not universal photo support.
+Photo extraction first uses gallery-dl 1.32.11 bundled with its dependencies, and accepts only original image URLs returned by that extractor. It does not substitute video thumbnails. Instagram carousels, TikTok slideshows and pages without exposed image metadata are not guaranteed; the app reports unsupported rather than saving a thumbnail as the original. This is a material limitation, not universal photo support.
 
 Downloads are written to MediaStore Movies/MediaPocket or Pictures/MediaPocket. Only current temporary files are deleted; user downloads persist. No analytics, cloud account or paid API. Websites see requests/IP. No file upscaling. Platform compression remains.
 

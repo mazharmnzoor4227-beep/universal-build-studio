@@ -24,7 +24,7 @@ class DownloadWorker(context:Context,params:WorkerParameters):CoroutineWorker(co
    }
    val url=LinkRules.parse(inputData.getString("url") ?: "")
    if(inputData.getBoolean("photos",false)) {
-    val images=runCatching { PhotoEngine.images(applicationContext,url,id.toString()) }.getOrElse { MediaEngine.images(url) }
+    val images=PhotoEngine.images(applicationContext,url,id.toString())
     images.forEachIndexed { index,image ->
      currentCoroutineContext().ensureActive();val file=File(dir,"photo-$index")
      val mime=MediaEngine.fetchImage(image,file);val saved=MediaEngine.publish(applicationContext,file,mime)

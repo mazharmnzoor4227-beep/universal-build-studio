@@ -33,24 +33,6 @@ object MediaEngine {
   // TikTok's extractor selects its available original streams; do not crop creator marks.
   YoutubeDL.execute(req,id,progress)
  }
- fun images(url:String):List<String> {
-  val doc=Jsoup.connect(LinkRules.parse(url)).timeout(25000).maxBodySize(3*1024*1024).get()
-  val results=linkedSetOf<String>()
-  fun collect(value:Any?) {
-   when(value) {
-    is JSONObject -> {
-     if(value.optString("@type")=="ImageObject") {
-      val u=value.optString("contentUrl").ifBlank { value.optString("url") };if(u.startsWith("https://"))results.add(u)
-     }
-     value.keys().forEach { collect(value.opt(it)) }
-    }
-    is org.json.JSONArray -> for(i in 0 until value.length())collect(value.opt(i))
-   }
-  }
-  doc.select("script[type=application/ld+json]").forEach { runCatching { collect(org.json.JSONTokener(it.data()).nextValue()) } }
-  require(results.isNotEmpty()) { "No original photo found in this public page. Private posts, slideshows and some photo posts need platform-specific support. A video thumbnail is not an original photo." }
-  return results.take(30).toList()
- }
  fun fetchImage(url:String,file:File):String {
   require(url.startsWith("https://"))
   val client=OkHttpClient.Builder().callTimeout(2,TimeUnit.MINUTES).build()

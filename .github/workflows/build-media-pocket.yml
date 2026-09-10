@@ -48,4 +48,4 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           cp media-pocket/app/build/outputs/apk/debug/app-debug.apk media-pocket.apk
-          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ ARM64. Debug-signed test build. Public video links use yt-dlp; photos use gallery-dl with public image metadata fallback. Source and license notices included. No guarantee of every platform/link or watermark-free source. Device runtime validation pending." --latest=false
+          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ ARM64. Debug-signed test build. Public video links use yt-dlp; photos use gallery-dl. Source and license notices included. No guarantee of every platform/link or watermark-free source. Device runtime validation pending." --latest=false
