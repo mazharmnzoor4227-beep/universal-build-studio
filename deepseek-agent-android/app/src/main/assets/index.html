@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Agent</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">◈</span>
+      <span class="name">Agent</span>
+      <span class="badge" id="badge" hidden></span>
+    </div>
+    <div class="actions">
+      <button class="ghost" id="newChat" title="New chat">New</button>
+      <button class="ghost icon" id="settingsBtn" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <main class="messages" id="messages">
+    <div class="empty" id="empty">
+      <div class="empty-mark">◈</div>
+      <h1>How can I help?</h1>
+      <p>Chat, generate code, and use live web research when the connected provider supports it.</p>
+      <div class="chips">
+        <button class="chip" data-prompt="What happened in AI this week?">Research AI this week</button>
+        <button class="chip" data-prompt="Write a clean JavaScript utility with tests.">Write code</button>
+        <button class="chip" data-prompt="Help me plan the next steps for my app project.">Plan a project</button>
+      </div>
+    </div>
+  </main>
+
+  <footer class="composer">
+    <form id="composer" autocomplete="off">
+      <textarea id="input" rows="1" placeholder="Ask anything…" spellcheck="true"></textarea>
+      <button type="submit" id="send" title="Send" aria-label="Send">
+        <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+          <path d="M12 19V5M12 5l-6 6M12 5l6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+    </form>
+    <div class="hint">Enter to send · Shift+Enter for a new line</div>
+  </footer>
+</div>
+
+<div class="modal" id="settingsModal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>Settings</h2>
+      <button class="ghost icon" id="closeModal" title="Close">✕</button>
+    </div>
+    <label class="field">
+      <span class="field-label">API key</span>
+      <input type="password" id="apiKey" placeholder="Paste your API key" spellcheck="false" autocomplete="off" />
+    </label>
+    <p class="field-help">Only the key is required. Provider, endpoint, and a default model are selected automatically.</p>
+    <div class="modal-error" id="settingsError" hidden></div>
+    <div class="modal-actions">
+      <button class="ghost danger" id="clearKey">Remove key</button>
+      <button class="primary" id="saveKey">Save</button>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
