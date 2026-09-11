@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -93,7 +92,7 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SmallTopAppBar
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -204,7 +203,7 @@ fun NexoraApp(
         Scaffold(
             containerColor = NexoraColors.background,
             topBar = {
-                SmallTopAppBar(
+                    TopAppBar(
                     title = {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("NEXORA", fontWeight = FontWeight.Bold, letterSpacing = 2.sp)
@@ -224,7 +223,7 @@ fun NexoraApp(
                             IconButton(onClick = { viewModel.createConversation() }) { Icon(Icons.Rounded.Add, "New chat") }
                         }
                     },
-                    colors = TopAppBarDefaults.smallTopAppBarColors(containerColor = NexoraColors.background)
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = NexoraColors.background)
                 )
             },
             bottomBar = {
@@ -529,7 +528,7 @@ private fun ProjectsPage(padding: PaddingValues, projects: List<ProjectEntity>, 
                         }
                         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             OutlinedButton(onClick = { onPreview(project) }, enabled = project.previewHtml.isNotBlank()) { Icon(Icons.Rounded.Preview, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text("Preview") }
-                            OutlinedButton(onClick = { kotlinx.coroutines.MainScope().launch { val (item, files) = viewModel.filesForProject(project.id); if (item != null) ProjectExporter.share(context, item, files) } }) { Icon(Icons.Rounded.ArrowBack, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text("Export ZIP") }
+                            OutlinedButton(onClick = { kotlinx.coroutines.MainScope().launch { val (item, files) = viewModel.filesForProject(project.id); if (item != null) ProjectExporter.share(context, item, files) } }) { Icon(Icons.Rounded.Description, null, Modifier.size(17.dp)); Spacer(Modifier.width(4.dp)); Text("Export ZIP") }
                         }
                     }
                 }
@@ -583,7 +582,7 @@ private fun SettingsPage(padding: PaddingValues, viewModel: NexoraViewModel, pro
 }
 
 @Composable
-private fun SettingsSection(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) { Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, tint = NexoraColors.accentDeep, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(title, color = NexoraColors.accentDeep, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold) } }
+private fun SettingsSection(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) { Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) { Icon(icon, null, modifier = Modifier.size(18.dp), tint = NexoraColors.accentDeep); Spacer(Modifier.width(8.dp)); Text(title, color = NexoraColors.accentDeep, fontSize = 11.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Bold) } }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
