@@ -2,7 +2,7 @@ name: Build Media Pocket
 on:
   workflow_dispatch:
   push:
-    branches: [main]
+    branches: [main, media-pocket-v2-universal-4k]
     paths: ['media-pocket/**', '.github/workflows/build-media-pocket.yml']
 permissions:
   contents: write
@@ -42,10 +42,11 @@ jobs:
             media-pocket/app/build/outputs/apk/debug/app-debug.apk
             media-pocket-source.zip
       - name: Publish APK and corresponding source
+        if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
           SHA: ${{ github.sha }}
         run: |
           cp media-pocket/app/build/outputs/apk/debug/app-debug.apk media-pocket.apk
-          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ ARM64. Debug-signed test build. Public video links use yt-dlp; photos use gallery-dl. Source and license notices included. No guarantee of every platform/link or watermark-free source. Device runtime validation pending." --latest=false
+          gh release create "media-pocket-$GITHUB_RUN_NUMBER" media-pocket.apk media-pocket-source.zip --target "$SHA" --title "Media Pocket test build $GITHUB_RUN_NUMBER" --notes "Android 10+ universal ABI test build with Best/4K/2K/1080p/720p/480p source-quality options. Debug-signed. Device runtime validation still recommended." --latest=false
