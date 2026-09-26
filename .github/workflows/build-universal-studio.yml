@@ -29,6 +29,12 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Restore stable debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: universal-build-studio-debug-signing-v1
+
       - name: Validate project import
         run: python3 -m unittest discover -s tests -v
 
@@ -72,7 +78,7 @@ jobs:
             echo 'Signed with configured release key.' > notes.txt
           else
             cp output/app-debug.apk output/studio.apk
-            echo 'Test/debug signature: updating an existing installation is not guaranteed until a permanent signing key is configured.' > notes.txt
+            echo 'Stable debug signature is used for store updates until a permanent release key is configured.' > notes.txt
           fi
       - name: Publish downloadable builder
         env:
